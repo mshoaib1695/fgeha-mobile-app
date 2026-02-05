@@ -1,0 +1,38 @@
+{
+  "name": "fgeha-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "prestart": "node scripts/ensure-logo.js",
+    "start": "npx expo start --clear",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.0",
+    "expo": "~54.0.0",
+    "expo-asset": "~11.0.0",
+    "expo-image-picker": "~16.0.0",
+    "expo-linear-gradient": "~14.0.1",
+    "expo-location": "~18.0.0",
+    "expo-router": "~6.0.0",
+    "expo-status-bar": "~2.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.0",
+    "react-native-safe-area-context": "~5.4.0",
+    "react-native-screens": "~4.10.0",
+    "@react-native-async-storage/async-storage": "2.1.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "babel-preset-expo": "~13.0.0",
+    "@types/react": "^19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true,
+  "overrides": {
+    "react": "19.1.0",
+    "react-native": "0.81.0"
+  }
+}
