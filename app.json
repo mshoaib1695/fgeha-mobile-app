@@ -7,7 +7,7 @@
     "icon": "./assets/logo.png",
     "scheme": "fgeha",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
@@ -29,9 +29,17 @@
       "output": "static",
       "favicon": "./assets/logo.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2ecc8f19-ca6b-4a7d-9d95-bb49fac73e1f"
+      }
     }
   }
 }
