@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useAuth } from "../lib/auth-context";
-import { colors, gradientColors } from "../lib/theme";
+import { SafeGradient } from "../lib/safe-gradient";
+import { colors } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
 
@@ -13,7 +13,7 @@ export default function Pending() {
   const router = useRouter();
 
   return (
-    <LinearGradient colors={[...gradientColors]} style={styles.gradient}>
+    <SafeGradient style={styles.gradient}>
       <View style={styles.container}>
         {!logoError ? (
           <Image source={logoSource} style={styles.logo} resizeMode="contain" onError={() => setLogoError(true)} />
@@ -35,7 +35,7 @@ export default function Pending() {
           <Text style={styles.buttonText}>Sign out</Text>
         </TouchableOpacity>
       </View>
-    </LinearGradient>
+    </SafeGradient>
   );
 }
 

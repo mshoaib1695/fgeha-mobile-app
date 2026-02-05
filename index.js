@@ -6,14 +6,17 @@ import { App } from "expo-router/build/qualified-entry";
 import { renderRootComponent } from "expo-router/build/renderRootComponent";
 import { AuthProvider } from "./lib/auth-context";
 import { AlertProvider } from "./lib/alert-context";
+import { RootErrorBoundary } from "./lib/error-boundary";
 
 function Root() {
   return (
-    <AuthProvider>
-      <AlertProvider>
-        <App />
-      </AlertProvider>
-    </AuthProvider>
+    <RootErrorBoundary>
+      <AuthProvider>
+        <AlertProvider>
+          <App />
+        </AlertProvider>
+      </AuthProvider>
+    </RootErrorBoundary>
   );
 }
 

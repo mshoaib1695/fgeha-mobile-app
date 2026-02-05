@@ -158,15 +158,15 @@ export default function Register() {
           )}
         </View>
       <Text style={styles.title}>Register</Text>
-      <TextInput style={styles.input} placeholder="Full name *" value={fullName} onChangeText={setFullName} editable={!loading} />
-      <TextInput style={styles.input} placeholder="Email *" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" editable={!loading} />
-      <TextInput style={styles.input} placeholder="Password (min 6) *" value={password} onChangeText={setPassword} secureTextEntry editable={!loading} />
+      <TextInput style={styles.input} placeholder="Full name *" placeholderTextColor={colors.textMuted} value={fullName} onChangeText={setFullName} editable={!loading} />
+      <TextInput style={styles.input} placeholder="Email *" placeholderTextColor={colors.textMuted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" editable={!loading} />
+      <TextInput style={styles.input} placeholder="Password (min 6) *" placeholderTextColor={colors.textMuted} value={password} onChangeText={setPassword} secureTextEntry editable={!loading} />
       <View style={styles.row}>
-        <TextInput style={[styles.input, styles.phoneCode]} placeholder="+92" value={phoneCountryCode} onChangeText={setPhoneCountryCode} editable={!loading} />
-        <TextInput style={[styles.input, styles.phoneNum]} placeholder="Phone number *" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" editable={!loading} />
+        <TextInput style={[styles.input, styles.phoneCode]} placeholder="+92" placeholderTextColor={colors.textMuted} value={phoneCountryCode} onChangeText={setPhoneCountryCode} editable={!loading} />
+        <TextInput style={[styles.input, styles.phoneNum]} placeholder="Phone number *" placeholderTextColor={colors.textMuted} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" editable={!loading} />
       </View>
-      <TextInput style={styles.input} placeholder="House no *" value={houseNo} onChangeText={setHouseNo} editable={!loading} />
-      <TextInput style={styles.input} placeholder="Street no *" value={streetNo} onChangeText={setStreetNo} editable={!loading} />
+      <TextInput style={styles.input} placeholder="House no *" placeholderTextColor={colors.textMuted} value={houseNo} onChangeText={setHouseNo} editable={!loading} />
+      <TextInput style={styles.input} placeholder="Street no *" placeholderTextColor={colors.textMuted} value={streetNo} onChangeText={setStreetNo} editable={!loading} />
       <Text style={styles.label}>Sub-sector *</Text>
       <View style={styles.sectorWrap}>
         {sectorsError ? (
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   logo: { width: 120, height: 56 },
   logoFallback: { fontSize: 22, fontWeight: "700", color: colors.textOnGradient, letterSpacing: 2 },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 24, textAlign: "center", color: colors.textOnGradient },
-  input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 16, backgroundColor: colors.cardBg },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 16, backgroundColor: colors.cardBg, color: colors.textPrimary },
   row: { flexDirection: "row", gap: 8 },
   phoneCode: { width: 80 },
   phoneNum: { flex: 1 },

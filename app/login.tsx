@@ -9,11 +9,11 @@ import {
   Platform,
   Image,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, Link } from "expo-router";
 import { useAuth } from "../lib/auth-context";
 import { useAppAlert } from "../lib/alert-context";
-import { colors, gradientColors } from "../lib/theme";
+import { SafeGradient } from "../lib/safe-gradient";
+import { colors } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
 
@@ -43,7 +43,7 @@ export default function Login() {
   };
 
   return (
-    <LinearGradient colors={[...gradientColors]} style={styles.gradient}>
+    <SafeGradient style={styles.gradient}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
@@ -95,7 +95,7 @@ export default function Login() {
           </Link>
         </View>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </SafeGradient>
   );
 }
 
@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     fontSize: 16,
     backgroundColor: colors.inputBg,
+    color: colors.textPrimary,
   },
   button: { backgroundColor: colors.primary, padding: 16, borderRadius: 10, alignItems: "center", marginTop: 8 },
   buttonDisabled: { opacity: 0.6 },

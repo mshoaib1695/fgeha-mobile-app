@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, StyleSheet, Image, InteractionManager, Text } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useAuth } from "../lib/auth-context";
-import { colors, gradientColors } from "../lib/theme";
+import { SafeGradient } from "../lib/safe-gradient";
+import { colors } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
 
@@ -21,11 +21,16 @@ export default function Index() {
       const elapsed = Date.now() - mountedAt.current;
       const delay = Math.max(0, MIN_SPLASH_MS - elapsed);
       const t = setTimeout(() => {
-        if (token && user?.approvalStatus === "approved") {
-          router.replace("/(tabs)");
-        } else if (token && user?.approvalStatus !== "approved") {
-          router.replace("/pending");
-        } else {
+        try {
+          if (token && user?.approvalStatus === "approved") {
+            router.replace("/(tabs)");
+          } else if (token && user?.approvalStatus !== "approved") {
+            router.replace("/pending");
+          } else {
+            router.replace("/login");
+          }
+        } catch (e) {
+          if (__DEV__) console.error("Splash navigation error:", e);
           router.replace("/login");
         }
       }, delay);
@@ -41,7 +46,7 @@ export default function Index() {
   }, []);
 
   return (
-    <LinearGradient colors={[...gradientColors]} style={styles.gradient}>
+    <SafeGradient style={styles.gradient}>
       <View style={styles.centered}>
         <View style={styles.logoCard}>
           <Image source={logoSource} style={styles.logo} resizeMode="contain" />
@@ -53,7 +58,7 @@ export default function Index() {
           <Text style={styles.loadingText}>Loading…</Text>
         </View>
       </View>
-    </LinearGradient>
+    </SafeGradient>
   );
 }
 

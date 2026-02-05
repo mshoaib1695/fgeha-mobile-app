@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth-context";
+import { SafeGradient } from "../../lib/safe-gradient";
 import { apiGet, API_URL } from "../../lib/api";
 import { colors, gradientColors } from "../../lib/theme";
 
@@ -73,7 +74,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <LinearGradient colors={[...gradientColors]} style={styles.gradient}>
+    <SafeGradient style={styles.gradient}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -117,7 +118,7 @@ export default function HomeScreen() {
           </View>
         ) : null}
       </ScrollView>
-    </LinearGradient>
+    </SafeGradient>
   );
 }
 

@@ -63,8 +63,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(USER_KEY),
       ]);
       if (storedToken) {
-        setToken(storedToken);
-        if (storedUser) setUser(JSON.parse(storedUser) as User);
+        let parsedUser: User | null = null;
+        if (storedUser) {
+          try {
+            parsedUser = JSON.parse(storedUser) as User;
+          } catch {
+            // Corrupted user data: clear token so we don't end up in inconsistent state
+            await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+          }
+        }
+        if (parsedUser !== null || !storedUser) {
+          setToken(storedToken);
+          if (parsedUser) setUser(parsedUser);
+        }
       }
     } catch {
       // ignore

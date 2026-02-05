@@ -427,6 +427,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 14,
     backgroundColor: "#fafafa",
+    color: colors.textPrimary,
   },
   pickerText: { fontSize: 16, color: colors.textSecondary },
   pickerPlaceholder: { fontSize: 16, color: colors.textMuted },
