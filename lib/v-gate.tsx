@@ -33,7 +33,7 @@ function SplashScreen() {
       <LinearGradient colors={[...gradientColors]} style={styles.header}>
         <Image source={logoSource} style={styles.logo} resizeMode="contain" />
         <Text style={styles.appName}>FGEHA - RSP</Text>
-        <Text style={styles.tagline}>Resident servcice portal</Text>
+        <Text style={styles.tagline}>Resident's Servcice Portal</Text>
       </LinearGradient>
       <View style={styles.content}>
         <View style={[styles.card, cardShadow]}>
@@ -86,7 +86,7 @@ export function VGate({ children }: { children: React.ReactNode }) {
       <LinearGradient colors={[...gradientColors]} style={[styles.header, styles.headerTight]}>
         <Image source={logoSource} style={styles.logo} resizeMode="contain" />
         <Text style={styles.appName}>FGEHA - RSP</Text>
-        <Text style={styles.tagline}>Resident service portal</Text>
+        <Text style={styles.tagline}>Resident's Service Portal</Text>
       </LinearGradient>
       <View style={styles.content}>
         <View style={[styles.card, cardShadow]}>

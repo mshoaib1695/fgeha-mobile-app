@@ -1,4 +1,4 @@
-# FGEHA — Resident Request Portal (Mobile)
+# FGEHA — Resident's Service Portal (Mobile)
 
 Mobile app for **FGEHA** (Federal Government Employees Housing Authority) residents to sign in, view the daily bulletin, submit requests, and track their request status.
 

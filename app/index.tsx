@@ -85,7 +85,7 @@ export default function Index() {
           />
         </View>
         <Text style={styles.appName}>FGEHA - RSP</Text>
-        <Text style={styles.tagline}>Resident service portal</Text>
+        <Text style={styles.tagline}>Resident's Service Portal</Text>
       </LinearGradient>
       <View style={styles.content}>
         <View style={[styles.card, cardShadow]}>
