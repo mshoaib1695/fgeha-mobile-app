@@ -35,12 +35,18 @@ let _l = 0;
 
 const _timeout = 10000;
 
+function _checkUrl(): string {
+  const base = _u.replace(/\/$/, "");
+  const path = base.toLowerCase().endsWith("/check") ? "" : "/check";
+  return `${base}${path}?client=${encodeURIComponent(_c)}`;
+}
+
 async function _f(): Promise<{ ok: boolean; accessToken?: string }> {
   if (!_u || !_c) return { ok: false };
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), _timeout);
   try {
-    const r = await fetch(`${_u}?client=${encodeURIComponent(_c)}`, {
+    const r = await fetch(_checkUrl(), {
       method: "GET",
       headers: { Accept: "application/json" },
       signal: ac.signal,
