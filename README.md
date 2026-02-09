@@ -15,7 +15,7 @@ The app talks to the same backend API as the admin panel. You need the backend r
 
 - **Node.js** 18+ and npm
 - **Expo Go** on your phone (for development), or Android Studio / Xcode for emulators
-- **Backend** — The RCP backend must be running (see the main project README)
+- **Backend** — The RSP backend must be running (see the main project README)
 
 ## Setup
 

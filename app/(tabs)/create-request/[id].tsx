@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,12 +12,14 @@ import {
   Modal,
   FlatList,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../lib/auth-context";
 import { useAppAlert } from "../../../lib/alert-context";
 import { apiGet, apiPost } from "../../../lib/api";
-import { colors, gradientColors } from "../../../lib/theme";
+import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
 import * as Location from "expo-location";
 
 function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
@@ -30,11 +32,13 @@ function FieldGroup({ title, children }: { title: string; children: React.ReactN
 }
 
 export default function CreateRequestFormScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
   const { showSuccess, showError } = useAppAlert();
   const requestTypeId = id ? parseInt(id, 10) : null;
+  const paddingBottom = tabScreenPaddingBottom(insets.bottom);
 
   const [requestTypeName, setRequestTypeName] = useState("");
   const [name, setName] = useState("");
@@ -51,13 +55,15 @@ export default function CreateRequestFormScreen() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const userSyncedRef = useRef(false);
 
   useEffect(() => {
-    refreshUser();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      userSyncedRef.current = false;
+      return;
+    }
+    if (userSyncedRef.current) return;
+    userSyncedRef.current = true;
     setName(user.fullName ?? "");
     setPhoneCountryCode(user.phoneCountryCode ?? "");
     setPhoneNumber(user.phoneNumber ?? "");
@@ -65,6 +71,10 @@ export default function CreateRequestFormScreen() {
     setStreetNo(user.streetNo ?? "");
     if (user.subSectorId != null) setSubSectorId(user.subSectorId);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) refreshUser();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,14 +199,20 @@ export default function CreateRequestFormScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <LinearGradient colors={[...gradientColors]} style={styles.header}>
-        <Text style={styles.headerTitle} numberOfLines={2}>
-          {requestTypeName || "New request"}
-        </Text>
-        <Text style={styles.headerSubtitle}>Fill in the details below</Text>
+      <LinearGradient
+        colors={[...gradientColors]}
+        style={[styles.header, { paddingTop: insets.top + 20 }]}
+      >
+        <Text style={styles.headerIcon}>📝</Text>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            {requestTypeName || "New request"}
+          </Text>
+          <Text style={styles.headerSubtitle}>Fill in the details below</Text>
+        </View>
       </LinearGradient>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -204,32 +220,29 @@ export default function CreateRequestFormScreen() {
           <FieldGroup title="Your details">
             <Text style={styles.label}>Full name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, styles.inputReadOnly]}
               value={name}
-              onChangeText={setName}
               placeholder="Enter your full name"
               placeholderTextColor={colors.textMuted}
-              editable={!submitting}
+              editable={false}
             />
             <Text style={styles.label}>Phone</Text>
             <View style={styles.phoneRow}>
               <TextInput
-                style={[styles.input, styles.phoneCode]}
+                style={[styles.input, styles.phoneCode, styles.inputReadOnly]}
                 value={phoneCountryCode}
-                onChangeText={setPhoneCountryCode}
                 placeholder="+92"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="phone-pad"
-                editable={!submitting}
+                editable={false}
               />
               <TextInput
-                style={[styles.input, styles.phoneNumber]}
+                style={[styles.input, styles.phoneNumber, styles.inputReadOnly]}
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
                 placeholder="Phone number"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="phone-pad"
-                editable={!submitting}
+                editable={false}
               />
             </View>
           </FieldGroup>
@@ -311,19 +324,22 @@ export default function CreateRequestFormScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.locationLoaderText}>Getting your location…</Text>
               </View>
+            ) : locationError ? (
+              <View style={styles.locationErrorWrap}>
+                <Ionicons name="location-outline" size={20} color={colors.error} />
+                <Text style={styles.locationErrorText}>{locationError}</Text>
+              </View>
             ) : (
-              <TextInput
-                style={styles.input}
-                value={locationText}
-                onChangeText={setLocationText}
-                placeholder="Latitude, longitude or address"
-                placeholderTextColor={colors.textMuted}
-                editable={!submitting}
-              />
+              <View style={styles.locationInfoWrap}>
+                <View style={styles.locationInfoIconWrap}>
+                  <Ionicons name="location" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.locationInfoTextWrap}>
+                  <Text style={styles.locationInfoTitle}>Location captured</Text>
+                  <Text style={styles.locationInfoCoords}>{locationText || "Coordinates will be sent with your request"}</Text>
+                </View>
+              </View>
             )}
-            {locationError && !loadingLocation ? (
-              <Text style={styles.locationError}>{locationError}</Text>
-            ) : null}
             <Text style={styles.label}>Description (optional)</Text>
             <TextInput
               style={[styles.input, styles.description]}
@@ -359,8 +375,20 @@ export default function CreateRequestFormScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Text style={styles.backBtnText}>← Back to request types</Text>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => {
+            if (from === "options" && requestTypeId != null) {
+              router.replace({ pathname: "/(tabs)/request-type-options/[id]", params: { id: String(requestTypeId) } });
+            } else {
+              router.back();
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backBtnText}>
+            {from === "options" ? "← Back to options" : "← Back to request types"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -370,7 +398,8 @@ export default function CreateRequestFormScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   header: {
-    paddingTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
     paddingBottom: 24,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
@@ -381,6 +410,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  headerIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 4,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
@@ -388,11 +426,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: typography.subtitleSize,
+    lineHeight: typography.subtitleLineHeight,
     color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
+    marginTop: 6,
   },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { padding: 20 },
   card: {
     backgroundColor: colors.cardBg,
     borderRadius: 20,
@@ -406,7 +445,7 @@ const styles = StyleSheet.create({
   },
   fieldGroup: { marginBottom: 24 },
   fieldGroupTitle: {
-    fontSize: 13,
+    fontSize: typography.smallSize,
     fontWeight: "700",
     color: colors.primary,
     letterSpacing: 0.5,
@@ -414,7 +453,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   label: {
-    fontSize: 13,
+    fontSize: typography.smallSize,
     fontWeight: "600",
     marginBottom: 6,
     color: colors.textSecondary,
@@ -424,13 +463,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
-    fontSize: 16,
+    fontSize: typography.bodySize,
     marginBottom: 14,
     backgroundColor: "#fafafa",
     color: colors.textPrimary,
   },
-  pickerText: { fontSize: 16, color: colors.textSecondary },
-  pickerPlaceholder: { fontSize: 16, color: colors.textMuted },
+  pickerText: { fontSize: typography.bodySize, color: colors.textSecondary },
+  pickerPlaceholder: { fontSize: typography.bodySize, color: colors.textMuted },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -444,16 +483,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: typography.cardTitleSize,
+    fontWeight: typography.cardTitleWeight,
     color: colors.textSecondary,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
   modalOption: { paddingVertical: 14, paddingHorizontal: 16 },
-  modalOptionText: { fontSize: 16, color: colors.textSecondary },
+  modalOptionText: { fontSize: typography.bodySize, color: colors.textSecondary },
   modalCancel: { paddingVertical: 14, paddingHorizontal: 16, marginTop: 8, alignItems: "center" },
-  modalCancelText: { fontSize: 16, fontWeight: "600", color: colors.primary },
+  modalCancelText: { fontSize: typography.bodySize, fontWeight: "600", color: colors.primary },
+  inputReadOnly: { backgroundColor: colors.border + "20", color: colors.textSecondary },
   phoneRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
   phoneCode: { width: 90 },
   phoneNumber: { flex: 1 },
@@ -465,13 +505,56 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginBottom: 14,
-    backgroundColor: "#f0f9eb",
+    backgroundColor: "rgba(106, 176, 76, 0.08)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(106, 176, 76, 0.3)",
+    borderColor: "rgba(106, 176, 76, 0.2)",
   },
-  locationLoaderText: { fontSize: 14, color: colors.textSecondary },
-  locationError: { fontSize: 13, color: colors.error, marginBottom: 14 },
+  locationLoaderText: { fontSize: typography.smallSize, color: colors.textSecondary },
+  locationErrorWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    backgroundColor: "rgba(200, 0, 0, 0.06)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(200, 0, 0, 0.2)",
+  },
+  locationErrorText: { flex: 1, fontSize: typography.smallSize, color: colors.error },
+  locationInfoWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    backgroundColor: "rgba(106, 176, 76, 0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(106, 176, 76, 0.2)",
+    gap: 12,
+  },
+  locationInfoIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(106, 176, 76, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationInfoTextWrap: { flex: 1, minWidth: 0 },
+  locationInfoTitle: {
+    fontSize: typography.smallSize,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  locationInfoCoords: {
+    fontSize: typography.smallSize,
+    color: colors.textSecondary,
+  },
   button: {
     borderRadius: 14,
     overflow: "hidden",
@@ -489,9 +572,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonText: { color: colors.textOnGradient, fontSize: 17, fontWeight: "700" },
+  buttonText: { color: colors.textOnGradient, fontSize: typography.bodySize, fontWeight: "700" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  errorText: { fontSize: 16, color: colors.textSecondary, marginBottom: 16 },
+  errorText: { fontSize: typography.bodySize, color: colors.textSecondary, marginBottom: 16 },
   backBtn: { alignItems: "center", paddingVertical: 12 },
-  backBtnText: { color: colors.primary, fontSize: 15, fontWeight: "600" },
+  backBtnText: { color: colors.primary, fontSize: typography.smallSize, fontWeight: "600" },
 });

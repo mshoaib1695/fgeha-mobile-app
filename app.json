@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "FGEHA",
+    "name": "FGEHA-RSP",
     "slug": "fgeha-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6ab04c"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#6ab04c"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.fgeha.app"
     },

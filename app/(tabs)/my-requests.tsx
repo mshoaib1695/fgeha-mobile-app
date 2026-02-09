@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppAlert } from "../../lib/alert-context";
 import { apiGet } from "../../lib/api";
-import { colors, gradientColors } from "../../lib/theme";
+import { colors, gradientColors, tabScreenPaddingBottom } from "../../lib/theme";
 
 interface RequestType {
   id: number;
@@ -111,10 +112,12 @@ function EmptyState() {
 }
 
 export default function MyRequestsScreen() {
+  const insets = useSafeAreaInsets();
   const { showError } = useAppAlert();
   const [list, setList] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const listPaddingBottom = tabScreenPaddingBottom(insets.bottom);
 
   const load = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -137,7 +140,7 @@ export default function MyRequestsScreen() {
   if (loading && list.length === 0) {
     return (
       <LinearGradient colors={[...gradientColors]} style={styles.gradient}>
-        <View style={styles.centered}>
+        <View style={[styles.centered, { paddingBottom: listPaddingBottom }]}>
           <ActivityIndicator size="large" color={colors.textOnGradient} />
           <Text style={styles.loadingText}>Loading your requests…</Text>
         </View>
@@ -157,7 +160,10 @@ export default function MyRequestsScreen() {
         data={list}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }: { item: RequestItem }) => <RequestCard item={item} />}
-        contentContainerStyle={list.length === 0 ? styles.emptyContainer : styles.list}
+        contentContainerStyle={[
+          list.length === 0 ? styles.emptyContainer : styles.list,
+          { paddingBottom: listPaddingBottom },
+        ]}
         ListEmptyComponent={<EmptyState />}
         refreshControl={
           <RefreshControl
@@ -295,7 +301,7 @@ const styles = StyleSheet.create({
   statusPillProgress: {
     backgroundColor: "#f0f9eb",
     borderWidth: 1,
-    borderColor: "rgba(106, 176, 76, 0.5)",
+    borderColor: "rgba(13, 148, 136, 0.5)",
   },
   statusPillTextProgress: {
     color: colors.primary,

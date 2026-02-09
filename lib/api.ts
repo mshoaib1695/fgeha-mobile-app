@@ -1,3 +1,5 @@
+import { getVToken } from "./v";
+
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 
 let token: string | null = null;
@@ -35,6 +37,8 @@ export async function api<T>(
   if (token) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
+  const v = getVToken();
+  if (v) (headers as Record<string, string>)["X-V"] = v;
   let res: Response;
   try {
     res = await fetch(url, { ...options, headers });

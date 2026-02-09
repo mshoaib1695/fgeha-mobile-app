@@ -24,7 +24,7 @@ const config = {
   success: {
     icon: "checkmark-circle" as const,
     iconColor: colors.primary,
-    bgIcon: "rgba(106, 176, 76, 0.12)",
+    bgIcon: "rgba(13, 148, 136, 0.12)",
     titleColor: colors.textPrimary,
   },
   error: {
@@ -36,7 +36,7 @@ const config = {
   info: {
     icon: "information-circle" as const,
     iconColor: colors.primary,
-    bgIcon: "rgba(106, 176, 76, 0.12)",
+    bgIcon: "rgba(13, 148, 136, 0.12)",
     titleColor: colors.textPrimary,
   },
 };

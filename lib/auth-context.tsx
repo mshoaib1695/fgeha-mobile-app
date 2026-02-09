@@ -17,6 +17,8 @@ export interface User {
   streetNo?: string;
   subSector?: { id: number; name: string; code: string };
   subSectorId?: number;
+  /** Profile image path (e.g. profiles/uuid.jpg); use API_URL + "/" + profileImage for full URL */
+  profileImage?: string | null;
 }
 
 type AuthContextType = {

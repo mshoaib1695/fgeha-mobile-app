@@ -3,192 +3,396 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
+  Platform,
   ActivityIndicator,
-  Linking,
   ScrollView,
+  useWindowDimensions,
+  Image,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { useAuth } from "../../lib/auth-context";
-import { SafeGradient } from "../../lib/safe-gradient";
-import { apiGet, API_URL } from "../../lib/api";
-import { colors, gradientColors } from "../../lib/theme";
+import { useRouter } from "expo-router";
+import { apiGet } from "../../lib/api";
+import { useAppAlert } from "../../lib/alert-context";
+import { colors, gradientColors, tabScreenPaddingBottom } from "../../lib/theme";
+import { API_URL } from "../../lib/api";
 
-const logoSource = require("../../assets/logo.png");
-
-type DailyBulletin = {
+interface RequestType {
   id: number;
-  date: string;
-  title: string;
-  description: string | null;
-  filePath: string;
-  fileType: string;
-};
-
-function fileUrl(path: string): string {
-  const base = (API_URL || "").replace(/\/$/, "");
-  return base ? `${base}/${path}` : path;
+  name: string;
+  slug: string;
+  displayOrder: number;
+  iconUrl?: string | null;
+  underConstruction?: boolean;
+  underConstructionMessage?: string | null;
 }
 
+function emojiForRequestType(slug: string, name: string): string {
+  const s = (slug || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  if (s.includes("garbage") || n.includes("garbage")) return "🗑️";
+  if (s.includes("water") || n.includes("water")) return "💧";
+  if (s.includes("sewer") || n.includes("sewer") || s.includes("drainage") || n.includes("drainage")) return "🚿";
+  if (s.includes("electric") || n.includes("electric") || s.includes("street_light") || n.includes("street light")) return "⚡";
+  if (s.includes("road") || n.includes("road")) return "🛣️";
+  if (s.includes("other") || n.includes("other")) return "🏠";
+  return "📋";
+}
+
+function subtitleForRequestType(slug: string, name: string): string {
+  const s = (slug || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  if (s.includes("garbage") || n.includes("garbage")) return "Waste Issues";
+  if (s.includes("water") || n.includes("water")) return "Water Supply Issues";
+  if (s.includes("sewer") || n.includes("sewer") || s.includes("drainage") || n.includes("drainage")) return "Drainage Issues";
+  if (s.includes("electric") || n.includes("electric") || s.includes("street_light") || n.includes("street light")) return "Power Issues";
+  if (s.includes("road") || n.includes("road")) return "Road Repair";
+  if (s.includes("other") || n.includes("other")) return "Other Civic Issues";
+  return "Report an issue";
+}
+
+function isOthersType(slug: string, name: string): boolean {
+  const s = (slug || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  return s.includes("other") || n.includes("other");
+}
+
+function resolveIconUri(iconUrl: string | null | undefined): string | null {
+  if (!iconUrl?.trim()) return null;
+  const u = iconUrl.trim();
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  const base = API_URL.replace(/\/$/, "");
+  return u.startsWith("/") ? `${base}${u}` : `${base}/${u}`;
+}
+
+const CARD_GAP = 14;
+const ICON_SIZE = 52;
+const ICON_WRAP_SIZE = 64;
+
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+  },
+  android: { elevation: 4 },
+});
+
 export default function HomeScreen() {
-  const { user } = useAuth();
-  const [bulletin, setBulletin] = useState<DailyBulletin | null>(null);
-  const [loadingBulletin, setLoadingBulletin] = useState(true);
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width: winW } = useWindowDimensions();
+  const { showError } = useAppAlert();
+  const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await apiGet<DailyBulletin | null>("/daily-bulletin/today");
-        if (!cancelled && data) setBulletin(data);
-      } catch {
-        if (!cancelled) setBulletin(null);
-      } finally {
-        if (!cancelled) setLoadingBulletin(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const openFile = () => {
-    if (!bulletin?.filePath) return;
-    const url = fileUrl(bulletin.filePath);
-    Linking.openURL(url).catch(() => {});
-  };
-
-  const formatDate = (d: string) => {
+  const loadRequestTypes = async () => {
+    setLoading(true);
+    setFetchError(null);
     try {
-      const date = new Date(d);
-      return date.toLocaleDateString(undefined, {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch {
-      return d;
+      const list = await apiGet<RequestType[]>("/request-types");
+      const sorted = (Array.isArray(list) ? list : []).sort(
+        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+      );
+      setRequestTypes(sorted);
+    } catch (e) {
+      const msg = (e as Error).message ?? "Could not load request types.";
+      setFetchError(msg);
+      showError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadRequestTypes();
+  }, []);
+
+  const openRequestType = async (item: RequestType) => {
+    if (item.underConstruction) {
+      router.push({
+        pathname: "/(tabs)/under-construction",
+        params: { title: item.name, message: item.underConstructionMessage ?? "PAGE IS UNDER CONSTRUCTION 🚧" },
+      });
+      return;
+    }
+    try {
+      const options = await apiGet<unknown[]>(`/request-type-options/by-request-type/${item.id}`);
+      if (Array.isArray(options) && options.length > 0) {
+        router.push({ pathname: "/(tabs)/request-type-options/[id]", params: { id: String(item.id) } });
+      } else {
+        router.push(`/(tabs)/create-request/${item.id}`);
+      }
+    } catch {
+      router.push(`/(tabs)/create-request/${item.id}`);
+    }
+  };
+
+  const paddingBottom = tabScreenPaddingBottom(insets.bottom);
+
+  if (loading) {
+    return (
+      <LinearGradient colors={[...gradientColors]} style={styles.gradient}>
+        <View style={[styles.centered, { paddingBottom }]}>
+          <ActivityIndicator size="large" color={colors.textOnGradient} />
+          <Text style={styles.loadingText}>Loading…</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (requestTypes.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { paddingBottom }]}>
+        <Text style={styles.emptyText}>
+          {fetchError ? fetchError : "No request types available."}
+        </Text>
+        {fetchError ? (
+          <TouchableOpacity style={styles.retryButton} onPress={loadRequestTypes} activeOpacity={0.8}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  }
+
+  const paddingH = 20;
+  const cardWidth = (winW - paddingH * 2 - CARD_GAP) / 2;
+
   return (
-    <SafeGradient style={styles.gradient}>
+    <View style={styles.container}>
+      <LinearGradient colors={[...gradientColors]} style={styles.header}>
+        <Text style={styles.headerTitle}>FGEHA - RSP</Text>
+        <Text style={styles.headerSubtitle}>Select the type of issue you want to report.</Text>
+      </LinearGradient>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom, paddingHorizontal: paddingH }]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.logoWrap}>
-            <Image source={logoSource} style={styles.logo} resizeMode="contain" />
-          </View>
-          <Text style={styles.welcome}>Welcome, {user?.fullName ?? "User"}!</Text>
-          <Text style={styles.hint}>
-            Use the tabs below to create a new request or view your existing requests.
-          </Text>
-        </View>
-
-        {loadingBulletin ? (
-          <View style={styles.bulletinCard}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.bulletinLoadingText}>Loading today's list…</Text>
-          </View>
-        ) : bulletin ? (
-          <View style={styles.bulletinCard}>
-            <Text style={styles.bulletinHeading}>Water tanker list</Text>
-            <Text style={styles.bulletinTitle}>{bulletin.title}</Text>
-            {bulletin.description ? (
-              <Text style={styles.bulletinDescription}>{bulletin.description}</Text>
-            ) : null}
-            <Text style={styles.bulletinDate}>{formatDate(bulletin.date)}</Text>
-            <TouchableOpacity style={styles.viewFileBtn} onPress={openFile} activeOpacity={0.85}>
-              <LinearGradient
-                colors={[...gradientColors]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.viewFileBtnGradient}
+        <View style={styles.grid}>
+        {requestTypes.map((item, index) => {
+          const fullWidth = isOthersType(item.slug, item.name);
+          const width = fullWidth ? winW - paddingH * 2 : cardWidth;
+          const isFirstInRow = fullWidth || index % 2 === 0;
+          const hasIcon = !!resolveIconUri(item.iconUrl);
+          const emoji = emojiForRequestType(item.slug, item.name);
+          const subtext = subtitleForRequestType(item.slug, item.name);
+          if (fullWidth) {
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.78}
+                onPress={() => openRequestType(item)}
+                style={[
+                  styles.card,
+                  styles.cardOthers,
+                  cardShadow,
+                  { width },
+                ]}
               >
-                <Text style={styles.viewFileBtnText}>
-                  View {bulletin.fileType.toUpperCase()}
-                </Text>
-              </LinearGradient>
+                <View style={styles.othersRow}>
+                  <View style={styles.othersIconWrap}>
+                    {hasIcon ? (
+                      <Image
+                        source={{ uri: resolveIconUri(item.iconUrl)! }}
+                        style={styles.othersIcon}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Text style={styles.othersEmoji}>{emoji}</Text>
+                    )}
+                  </View>
+                  <View style={styles.othersTextWrap}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={2}>{subtext}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+          return (
+            <TouchableOpacity
+              key={item.id}
+              activeOpacity={0.78}
+              onPress={() => openRequestType(item)}
+              style={[
+                styles.card,
+                cardShadow,
+                {
+                  width,
+                  marginRight: isFirstInRow ? CARD_GAP : 0,
+                },
+              ]}
+            >
+              <View style={styles.iconWrap}>
+                {hasIcon ? (
+                  <Image
+                    source={{ uri: resolveIconUri(item.iconUrl)! }}
+                    style={styles.cardIcon}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Text style={styles.cardEmoji}>{emoji}</Text>
+                )}
+              </View>
+              <View style={styles.cardTextCenter}>
+                <Text style={[styles.cardTitle, styles.cardTitleCenter]} numberOfLines={2}>{item.name}</Text>
+                <Text style={[styles.cardSubtitle, styles.cardSubtitleCenter]} numberOfLines={2}>{subtext}</Text>
+              </View>
             </TouchableOpacity>
-          </View>
-        ) : null}
+          );
+        })}
+        </View>
       </ScrollView>
-    </SafeGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: { padding: 24, paddingBottom: 40 },
-  header: { marginBottom: 24 },
-  logoWrap: { alignItems: "center", marginBottom: 20 },
-  logo: { width: 120, height: 56 },
-  welcome: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 12,
-    color: colors.textOnGradient,
-  },
-  hint: { fontSize: 16, color: "rgba(255,255,255,0.9)" },
-  bulletinCard: {
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 20,
-    padding: 20,
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  gradient: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  bulletinLoadingText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  bulletinHeading: {
-    fontSize: 12,
+  headerTitle: {
+    fontSize: 22,
     fontWeight: "700",
-    color: colors.primary,
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    textTransform: "uppercase",
+    color: colors.textOnGradient,
+    letterSpacing: 0.3,
   },
-  bulletinTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  bulletinDescription: {
+  headerSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 12,
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 4,
   },
-  bulletinDate: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingTop: 20,
   },
-  viewFileBtn: {
-    borderRadius: 12,
-    overflow: "hidden",
-    alignSelf: "stretch",
-  },
-  viewFileBtnGradient: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+  centered: {
+    justifyContent: "center",
     alignItems: "center",
   },
-  viewFileBtnText: {
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: "rgba(255,255,255,0.9)",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+  },
+  retryButtonText: {
     color: colors.textOnGradient,
     fontSize: 16,
+    fontWeight: "600",
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+  },
+  card: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 20,
+    padding: 12,
+    marginBottom: 16,
+    minHeight: 120,
+  },
+  cardOthers: {
+    minHeight: undefined,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  othersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  othersIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  othersIcon: {
+    width: 30,
+    height: 30,
+    backgroundColor: "#FFFFFF",
+  },
+  othersEmoji: {
+    fontSize: 24,
+  },
+  othersTextWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  iconWrap: {
+    width: ICON_WRAP_SIZE,
+    height: ICON_WRAP_SIZE,
+    borderRadius: ICON_WRAP_SIZE / 2,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+    alignSelf: "center",
+  },
+  cardIcon: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    backgroundColor: "#FFFFFF",
+  },
+  cardEmoji: {
+    fontSize: 28,
+  },
+  cardTitle: {
+    fontSize: 14,
     fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 2,
+    letterSpacing: 0.15,
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 15,
+    opacity: 0.9,
+  },
+  cardTextCenter: {
+    alignItems: "center",
+  },
+  cardTitleCenter: {
+    textAlign: "center",
+  },
+  cardSubtitleCenter: {
+    textAlign: "center",
   },
 });

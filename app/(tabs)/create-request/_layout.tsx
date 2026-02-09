@@ -26,7 +26,7 @@ export default function CreateRequestLayout() {
   return (
     <Stack screenOptions={sharedHeaderOptions}>
       <Stack.Screen name="index" options={{ title: "New Request" }} />
-      <Stack.Screen name="[id]" options={{ title: "Submit request" }} />
+      <Stack.Screen name="[id]" options={{ title: "Submit request", headerShown: false }} />
     </Stack>
   );
 }

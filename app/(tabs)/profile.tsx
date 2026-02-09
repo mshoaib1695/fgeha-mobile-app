@@ -1,0 +1,596 @@
+import { useState, useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+  ScrollView,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAuth } from "../../lib/auth-context";
+import { useAppAlert } from "../../lib/alert-context";
+import { API_URL } from "../../lib/api";
+import { getVToken } from "../../lib/v";
+import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
+
+const avatarSize = 120;
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+  },
+  android: { elevation: 4 },
+});
+
+export default function ProfileScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { user, refreshUser, token } = useAuth();
+  const { showSuccess, showError, showInfo } = useAppAlert();
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [houseNo, setHouseNo] = useState("");
+  const [streetNo, setStreetNo] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName ?? "");
+      setHouseNo(user.houseNo ?? "");
+      setStreetNo(user.streetNo ?? "");
+    }
+  }, [user]);
+
+  const profileImageUrl =
+    user?.profileImage && user.profileImage.trim()
+      ? `${API_URL.replace(/\/$/, "")}/${user.profileImage.replace(/^\//, "")}`
+      : null;
+
+  const pickProfileImage = useCallback(async () => {
+    if (uploading || !token) {
+      if (!token) showError("Please sign in again.");
+      return;
+    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        showInfo("Permission needed", "Allow access to your photos to set a profile image.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.6,
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]) {
+        return;
+      }
+      const asset = result.assets[0];
+      let dataUrl: string;
+      if (asset.base64) {
+        const mime = asset.mimeType ?? "image/jpeg";
+        dataUrl = `data:${mime};base64,${asset.base64}`;
+      } else {
+        showError("Could not read the image. Try choosing a smaller or different photo.");
+        return;
+      }
+      setUploading(true);
+      const url = `${API_URL.replace(/\/$/, "")}/users/me`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+      const vToken = getVToken();
+      if (vToken) headers["X-V"] = vToken;
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ profileImage: dataUrl }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        const msg = (err as { message?: string | string[] }).message;
+        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+      }
+      await refreshUser();
+      showSuccess("Profile photo updated.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to update photo.";
+      showError(msg, "Change photo");
+    } finally {
+      setUploading(false);
+    }
+  }, [token, uploading, showError, showSuccess, showInfo, refreshUser]);
+
+  const saveAccount = useCallback(async () => {
+    if (!token || saving) return;
+    const nameTrim = fullName.trim();
+    if (nameTrim.length < 2) {
+      showError("Name must be at least 2 characters.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const url = `${API_URL.replace(/\/$/, "")}/users/me`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+      const vToken = getVToken();
+      if (vToken) headers["X-V"] = vToken;
+      const body: Record<string, string | undefined> = {
+        fullName: nameTrim,
+        houseNo: houseNo.trim() || undefined,
+        streetNo: streetNo.trim() || undefined,
+      };
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        const msg = (err as { message?: string | string[] }).message;
+        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+      }
+      await refreshUser();
+      setEditingAccount(false);
+      showSuccess("Account details updated.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to update account.";
+      showError(msg, "Save");
+    } finally {
+      setSaving(false);
+    }
+  }, [token, saving, fullName, houseNo, streetNo, showError, showSuccess, refreshUser]);
+
+  if (!user) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const paddingBottom = tabScreenPaddingBottom(insets.bottom);
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[...gradientColors]}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerMainRow}>
+          <View style={styles.headerIconWrap}>
+            <Ionicons name="person" size={28} color="rgba(255,255,255,0.95)" />
+          </View>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <Text style={styles.headerSubtitle}>Your account & photo</Text>
+          </View>
+        </View>
+      </LinearGradient>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          style={styles.contentBackRow}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
+          <Text style={styles.contentBackText}>Back</Text>
+        </TouchableOpacity>
+      <View style={[styles.card, cardShadow]}>
+        <Text style={styles.sectionTitle}>Profile photo</Text>
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarWrap}>
+            {profileImageUrl ? (
+              <Image source={{ uri: profileImageUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarPlaceholderText}>
+                  {(user.fullName ?? "?").trim().charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            {uploading && (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator color="#fff" size="large" />
+              </View>
+            )}
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.changeBtn,
+              uploading && styles.changeBtnDisabled,
+              pressed && !uploading && styles.changeBtnPressed,
+            ]}
+            onPress={pickProfileImage}
+            disabled={uploading}
+            android_ripple={uploading ? undefined : { color: "rgba(255,255,255,0.3)" }}
+          >
+            <Text style={styles.changeBtnText}>{uploading ? "Uploading…" : "Change photo"}</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.hint}>This photo is shown in the menu.</Text>
+      </View>
+      <View style={[styles.card, cardShadow]}>
+        <View style={styles.accountCardHeader}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          {!editingAccount ? (
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => setEditingAccount(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="pencil" size={18} color={colors.primary} />
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {!editingAccount ? (
+          <View style={styles.detailRows}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Name</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>{user.fullName?.trim() || "—"}</Text>
+            </View>
+            <View style={styles.detailDivider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Email</Text>
+              <Text style={[styles.detailValue, styles.detailValueMuted]} numberOfLines={1}>{user.email ?? "—"}</Text>
+              <Text style={styles.detailHint}>Cannot be changed</Text>
+            </View>
+            <View style={styles.detailDivider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Phone</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>
+                {[user.phoneCountryCode, user.phoneNumber].filter(Boolean).join(" ") || "—"}
+              </Text>
+            </View>
+            <View style={styles.detailDivider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>House no</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>{user.houseNo?.trim() || "—"}</Text>
+            </View>
+            <View style={styles.detailDivider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Street no</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>{user.streetNo?.trim() || "—"}</Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Your full name"
+              placeholderTextColor={colors.textMuted}
+              editable={!saving}
+            />
+            <Text style={styles.label}>Email (cannot be changed)</Text>
+            <Text style={styles.valueReadOnly}>{user.email ?? "—"}</Text>
+            <Text style={styles.label}>Phone (cannot be changed)</Text>
+            <Text style={styles.valueReadOnly}>
+              {[user.phoneCountryCode, user.phoneNumber].filter(Boolean).join(" ") || "—"}
+            </Text>
+            <Text style={styles.label}>House no</Text>
+            <TextInput
+              style={styles.input}
+              value={houseNo}
+              onChangeText={setHouseNo}
+              placeholder="House / unit number"
+              placeholderTextColor={colors.textMuted}
+              editable={!saving}
+            />
+            <Text style={styles.label}>Street no</Text>
+            <TextInput
+              style={styles.input}
+              value={streetNo}
+              onChangeText={setStreetNo}
+              placeholder="Street number"
+              placeholderTextColor={colors.textMuted}
+              editable={!saving}
+            />
+            <View style={styles.editActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => {
+                  setFullName(user?.fullName ?? "");
+                  setHouseNo(user?.houseNo ?? "");
+                  setStreetNo(user?.streetNo ?? "");
+                  setEditingAccount(false);
+                }}
+                disabled={saving}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                onPress={saveAccount}
+                disabled={saving}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[...gradientColors]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.saveBtnGradient}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={colors.textOnGradient} />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Save</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f0f2f5" },
+  header: {
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  headerMainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.textOnGradient,
+    letterSpacing: 0.3,
+  },
+  headerSubtitle: {
+    fontSize: typography.subtitleSize,
+    lineHeight: typography.subtitleLineHeight,
+    color: "rgba(255,255,255,0.92)",
+    marginTop: 2,
+  },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 12 },
+  contentBackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  contentBackText: {
+    fontSize: typography.bodySize,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  card: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  accountCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "rgba(13, 148, 136, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(13, 148, 136, 0.28)",
+  },
+  editBtnText: {
+    fontSize: typography.smallSize,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  detailRows: { marginTop: 0 },
+  detailRow: { paddingVertical: 10 },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMuted,
+    marginBottom: 2,
+    letterSpacing: 0.2,
+  },
+  detailValue: {
+    fontSize: typography.bodySize,
+    color: colors.textPrimary,
+    fontWeight: "500",
+    lineHeight: 22,
+  },
+  detailValueMuted: { color: colors.textSecondary },
+  detailHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+    fontStyle: "italic",
+  },
+  detailDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  editActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+    alignItems: "stretch",
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelBtnText: {
+    fontSize: typography.bodySize,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  saveBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    minHeight: 48,
+  },
+  saveBtnDisabled: { opacity: 0.7 },
+  saveBtnGradient: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtnText: {
+    color: colors.textOnGradient,
+    fontSize: typography.bodySize,
+    fontWeight: "700",
+  },
+  avatarSection: { alignItems: "center", marginBottom: 8 },
+  avatarWrap: {
+    width: avatarSize,
+    height: avatarSize,
+    borderRadius: avatarSize / 2,
+    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: "rgba(13, 148, 136, 0.25)",
+  },
+  avatar: { width: "100%", height: "100%" },
+  avatarPlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarPlaceholderText: {
+    fontSize: 44,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  changeBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    alignSelf: "center",
+  },
+  changeBtnDisabled: { opacity: 0.7 },
+  changeBtnPressed: { opacity: 0.85 },
+  changeBtnText: { color: "#fff", fontSize: typography.bodySize, fontWeight: "600" },
+  hint: { fontSize: typography.smallSize, color: colors.textMuted, textAlign: "center" },
+  label: {
+    fontSize: typography.smallSize,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  value: { fontSize: typography.bodySize, color: colors.textPrimary, marginBottom: 16 },
+  valueReadOnly: {
+    fontSize: typography.bodySize,
+    color: colors.textMuted,
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.inputBg ?? "#f0f0f0",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  input: {
+    fontSize: typography.bodySize,
+    color: colors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.inputBg ?? "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
+  },
+});
