@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
   FlatList,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,7 +19,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../lib/auth-context";
 import { useAppAlert } from "../../../lib/alert-context";
-import { apiGet, apiPost } from "../../../lib/api";
+import { apiGet, apiPost, API_URL } from "../../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
 import * as Location from "expo-location";
 
@@ -32,7 +33,7 @@ function FieldGroup({ title, children }: { title: string; children: React.ReactN
 }
 
 export default function CreateRequestFormScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id, from, optionId } = useLocalSearchParams<{ id: string; from?: string; optionId?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
@@ -41,6 +42,8 @@ export default function CreateRequestFormScreen() {
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
 
   const [requestTypeName, setRequestTypeName] = useState("");
+  const [serviceOptionLabel, setServiceOptionLabel] = useState<string | null>(null);
+  const [serviceOptionImageUrl, setServiceOptionImageUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phoneCountryCode, setPhoneCountryCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -92,6 +95,29 @@ export default function CreateRequestFormScreen() {
       cancelled = true;
     };
   }, [requestTypeId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const oid = optionId ? parseInt(optionId, 10) : null;
+      if (!oid || isNaN(oid)) {
+        if (!cancelled) setServiceOptionLabel(null);
+        return;
+      }
+      try {
+        const opt = await apiGet<{ id: number; label: string; imageUrl?: string | null }>(`/request-type-options/${oid}`);
+        if (!cancelled) {
+          if (opt?.label) setServiceOptionLabel(opt.label);
+          setServiceOptionImageUrl(opt?.imageUrl?.trim() ? opt.imageUrl ?? null : null);
+        }
+      } catch {
+        if (!cancelled) setServiceOptionLabel(null), setServiceOptionImageUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [optionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,7 +232,7 @@ export default function CreateRequestFormScreen() {
         <Text style={styles.headerIcon}>📝</Text>
         <View style={styles.headerTextWrap}>
           <Text style={styles.headerTitle} numberOfLines={2}>
-            {requestTypeName || "New request"}
+            {(serviceOptionLabel ?? requestTypeName) || "New request"}
           </Text>
           <Text style={styles.headerSubtitle}>Fill in the details below</Text>
         </View>
@@ -216,6 +242,15 @@ export default function CreateRequestFormScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {serviceOptionImageUrl ? (
+          <View style={styles.optionImageWrap}>
+            <Image
+              source={{ uri: serviceOptionImageUrl.startsWith("http") ? serviceOptionImageUrl : `${API_URL.replace(/\/$/, "")}${serviceOptionImageUrl.startsWith("/") ? "" : "/"}${serviceOptionImageUrl}` }}
+              style={styles.optionImage}
+              resizeMode="cover"
+            />
+          </View>
+        ) : null}
         <View style={styles.card}>
           <FieldGroup title="Your details">
             <Text style={styles.label}>Full name</Text>
@@ -432,6 +467,16 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   scrollContent: { padding: 20 },
+  optionImageWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  optionImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+  },
   card: {
     backgroundColor: colors.cardBg,
     borderRadius: 20,

@@ -86,7 +86,7 @@ export default function RequestTypeOptionsScreen() {
     if (opt.optionType === "form") {
       router.push({
         pathname: "/(tabs)/create-request/[id]",
-        params: { id: String(requestTypeId), from: "options" },
+        params: { id: String(requestTypeId), from: "options", optionId: String(opt.id) },
       });
       return;
     }
