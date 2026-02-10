@@ -4,7 +4,7 @@ import { TouchableOpacity, Text, View, StyleSheet, Platform, Pressable, Modal, S
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
-import { apiGet, API_URL } from "../../lib/api";
+import { apiGet, API_URL, unwrapList } from "../../lib/api";
 import { colors, typography } from "../../lib/theme";
 import { HeaderTitle } from "../../lib/app-header";
 import { HomeTabIcon, RequestsTabIcon } from "../../lib/tab-icons";
@@ -482,9 +482,10 @@ export default function TabsLayout() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await apiGet<RequestType[]>("/request-types");
+        const raw = await apiGet<unknown>("/request-types");
         if (!cancelled) {
-          const sorted = (Array.isArray(list) ? list : []).sort(
+          const list = unwrapList<RequestType>(raw);
+          const sorted = list.sort(
             (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
           );
           setRequestTypes(sorted);

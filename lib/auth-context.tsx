@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setAuthToken } from "./api";
+import { setAuthToken, API_URL } from "./api";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -90,8 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadStored();
   }, []);
 
+  const baseUrl = (API_URL ?? "").replace(/\/+$/, "");
+
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080"}/auth/login`, {
+    const url = `${baseUrl}/auth/login`;
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -108,16 +111,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (data: RegisterData) => {
-    const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080"}/auth/register`, {
+    const url = `${baseUrl}/auth/register`;
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error((err as { message?: string }).message ?? "Registration failed");
+      const msg = (err as { message?: string }).message ?? "Registration failed";
+      throw new Error(typeof msg === "string" ? msg : "Registration failed");
     }
-    // Registration success – user must wait for admin approval before login
   };
 
   const logout = async () => {

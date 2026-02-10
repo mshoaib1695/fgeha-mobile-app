@@ -19,7 +19,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../lib/auth-context";
 import { useAppAlert } from "../../../lib/alert-context";
-import { apiGet, apiPost, API_URL } from "../../../lib/api";
+import { apiGet, apiPost, API_URL, unwrapList } from "../../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
 import * as Location from "expo-location";
 
@@ -84,8 +84,9 @@ export default function CreateRequestFormScreen() {
     (async () => {
       if (!requestTypeId || isNaN(requestTypeId)) return;
       try {
-        const types = await apiGet<{ id: number; name: string }[]>("/request-types");
-        const found = Array.isArray(types) ? types.find((t) => t.id === requestTypeId) : null;
+        const raw = await apiGet<unknown>("/request-types");
+        const types = unwrapList<{ id: number; name: string }>(raw);
+        const found = types.find((t) => t.id === requestTypeId) ?? null;
         if (!cancelled && found) setRequestTypeName(found.name);
       } catch {
         if (!cancelled) setRequestTypeName("");

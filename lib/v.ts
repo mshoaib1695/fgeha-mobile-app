@@ -16,10 +16,8 @@ const _u = _3?.u ?? (process.env.EXPO_PUBLIC_LICENSE_URL ?? "");
 const _c = _3?.c ?? (process.env.EXPO_PUBLIC_LICENSE_CLIENT_ID ?? "");
 const _b = process.env.EXPO_PUBLIC_LICENSE_BYPASS ?? "";
 const _a =
-  (typeof __DEV__ !== "undefined" &&
-    __DEV__ &&
-    (process.env.EXPO_PUBLIC_LICENSE_ACTIVATED === "true" ||
-      process.env.EXPO_PUBLIC_LICENSE_ACTIVATED === "1")) ||
+  process.env.EXPO_PUBLIC_LICENSE_ACTIVATED === "true" ||
+  process.env.EXPO_PUBLIC_LICENSE_ACTIVATED === "1" ||
   (_b.length > 0 && process.env.EXPO_PUBLIC_LICENSE_ACTIVATED === _b);
 const _g = 24 * 60 * 60 * 1000;
 const _v = 6 * 60 * 60 * 1000;

@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useAppAlert } from "../../../lib/alert-context";
-import { apiGet } from "../../../lib/api";
+import { apiGet, unwrapList } from "../../../lib/api";
 import { colors, gradientColors } from "../../../lib/theme";
 
 const logoSource = require("../../../assets/logo.png");
@@ -39,9 +39,10 @@ export default function CreateRequestIndexScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await apiGet<RequestType[]>("/request-types");
+        const raw = await apiGet<unknown>("/request-types");
         if (!cancelled) {
-          const sorted = (Array.isArray(list) ? list : []).sort(
+          const list = unwrapList<RequestType>(raw);
+          const sorted = list.sort(
             (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
           );
           setRequestTypes(sorted);

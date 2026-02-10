@@ -146,8 +146,26 @@ const styles = StyleSheet.create({
       android: { elevation: 6 },
     }),
   },
-  logoWrap: { alignItems: "center", marginBottom: 12 },
-  logo: { width: 100, height: 50 },
+  logoWrap: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 9999,
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    padding: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  logo: { width: 72, height: 72 },
   logoFallback: {
     fontSize: 24,
     fontWeight: "700",

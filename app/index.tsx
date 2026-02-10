@@ -18,6 +18,7 @@ import { colors, gradientColors } from "../lib/theme";
 const logoSource = require("../assets/logo.png");
 
 const MIN_DISPLAY_MS = 1500;
+const V_CHECK_TIMEOUT_MS = 12000;
 
 export default function Index() {
   const { token, user, isLoading } = useAuth();
@@ -35,6 +36,15 @@ export default function Index() {
   useEffect(() => {
     runVCheck();
   }, [runVCheck]);
+
+  // If license check hangs (e.g. network never resolves), show error after timeout
+  useEffect(() => {
+    if (vState.status !== "checking") return;
+    const t = setTimeout(() => {
+      setVState({ status: "fail", message: "Connection timed out or unavailable." });
+    }, V_CHECK_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [vState.status]);
 
   useEffect(() => {
     if (vState.status !== "ok" || !canNavigate) return;

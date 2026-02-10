@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { apiGet } from "../../lib/api";
+import { apiGet, unwrapList } from "../../lib/api";
 import { useAppAlert } from "../../lib/alert-context";
 import { colors, gradientColors, tabScreenPaddingBottom } from "../../lib/theme";
 import { API_URL } from "../../lib/api";
@@ -93,8 +93,9 @@ export default function HomeScreen() {
     setLoading(true);
     setFetchError(null);
     try {
-      const list = await apiGet<RequestType[]>("/request-types");
-      const sorted = (Array.isArray(list) ? list : []).sort(
+      const raw = await apiGet<unknown>("/request-types");
+      const list = unwrapList<RequestType>(raw);
+      const sorted = list.sort(
         (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
       );
       setRequestTypes(sorted);

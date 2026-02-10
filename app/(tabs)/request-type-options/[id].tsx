@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiGet } from "../../../lib/api";
+import { apiGet, unwrapList } from "../../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
 
 type OptionType = "form" | "list" | "rules" | "link";
@@ -59,8 +59,9 @@ export default function RequestTypeOptionsScreen() {
           router.replace(`/(tabs)/create-request/${requestTypeId}`);
           return;
         }
-        const types = await apiGet<{ id: number; name: string; underConstruction?: boolean; underConstructionMessage?: string | null }[]>("/request-types");
-        const t = Array.isArray(types) ? types.find((x) => x.id === requestTypeId) : null;
+        const raw = await apiGet<unknown>("/request-types");
+        const types = unwrapList<{ id: number; name: string; underConstruction?: boolean; underConstructionMessage?: string | null }>(raw);
+        const t = types.find((x) => x.id === requestTypeId) ?? null;
         if (t?.underConstruction) {
           router.replace({
             pathname: "/(tabs)/under-construction",

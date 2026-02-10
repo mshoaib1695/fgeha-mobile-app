@@ -10,6 +10,8 @@ import {
   Image,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  FlatList,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, Link } from "expo-router";
@@ -17,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../lib/auth-context";
 import { useAppAlert } from "../lib/alert-context";
-import { apiGet, API_URL } from "../lib/api";
+import { apiGet, API_URL, unwrapList, getNetworkErrorHint } from "../lib/api";
 import { colors, gradientColors, typography } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
@@ -54,6 +56,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [loadingSectors, setLoadingSectors] = useState(true);
   const [sectorsError, setSectorsError] = useState<string | null>(null);
+  const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { register } = useAuth();
   const router = useRouter();
@@ -83,15 +86,16 @@ export default function Register() {
     setLoadingSectors(true);
     setSectorsError(null);
     try {
-      const list = await apiGet<SubSector[]>("/users/sub-sectors");
-      const items = Array.isArray(list) ? list : [];
+      const raw = await apiGet<unknown>("/users/sub-sectors");
+      const items = unwrapList<SubSector>(raw);
       setSubSectors(items);
       if (items.length) setSubSectorId(items[0].id);
       else setSubSectorId(null);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not load sub-sectors";
       setSubSectors([]);
       setSubSectorId(null);
-      setSectorsError(e instanceof Error ? e.message : "Could not load sub-sectors");
+      setSectorsError(msg);
     } finally {
       setLoadingSectors(false);
     }
@@ -140,7 +144,8 @@ export default function Register() {
         router.replace("/login")
       );
     } catch (e) {
-      showError(e instanceof Error ? e.message : "Please try again.", "Registration failed");
+      const msg = e instanceof Error ? e.message : "Please try again.";
+      showError(msg, "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -274,6 +279,13 @@ export default function Register() {
             <View style={styles.errorWrap}>
               <Text style={styles.errorText}>{sectorsError}</Text>
               <Text style={styles.errorSubtext}>API: {API_URL}</Text>
+              <Text style={styles.errorHintTitle}>How to fix:</Text>
+              <Text style={styles.errorHintText}>{getNetworkErrorHint()}</Text>
+              {!API_URL.includes("localhost") && !API_URL.includes("127.0.0.1") && (
+                <Text style={styles.errorHintText}>
+                  If using a remote URL, open {API_URL}/users/sub-sectors in a browser to check if the backend is up.
+                </Text>
+              )}
               <TouchableOpacity style={styles.retryButton} onPress={loadSubSectors} disabled={loadingSectors}>
                 <Text style={styles.retryButtonText}>{loadingSectors ? "Loading…" : "Retry"}</Text>
               </TouchableOpacity>
@@ -281,13 +293,56 @@ export default function Register() {
           ) : subSectors.length === 0 ? (
             <Text style={styles.errorText}>No sub-sectors available.</Text>
           ) : (
-            <TextInput
-              style={[styles.input, styles.inputReadOnly]}
-              value={subSectorId != null ? subSectors.find((s) => s.id === subSectorId)?.name ?? "" : ""}
-              placeholder="Sub-sector"
-              placeholderTextColor={colors.textMuted}
-              editable={false}
-            />
+            <>
+              <TouchableOpacity
+                style={[styles.input, styles.pickerTouchable]}
+                onPress={() => !loading && setSectorPickerOpen(true)}
+                disabled={loading}
+              >
+                <Text style={subSectorId != null ? styles.pickerText : styles.pickerPlaceholder}>
+                  {subSectorId != null
+                    ? subSectors.find((s) => s.id === subSectorId)?.name ?? `Sector #${subSectorId}`
+                    : "Select sub-sector"}
+                </Text>
+              </TouchableOpacity>
+              <Modal
+                visible={sectorPickerOpen}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSectorPickerOpen(false)}
+              >
+                <TouchableOpacity
+                  style={styles.modalOverlay}
+                  activeOpacity={1}
+                  onPress={() => setSectorPickerOpen(false)}
+                >
+                  <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                    <Text style={styles.modalTitle}>Select sub-sector</Text>
+                    <FlatList
+                      data={subSectors}
+                      keyExtractor={(item) => String(item.id)}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={styles.modalOption}
+                          onPress={() => {
+                            setSubSectorId(item.id);
+                            setSectorPickerOpen(false);
+                          }}
+                        >
+                          <Text style={styles.modalOptionText}>{item.name}</Text>
+                        </TouchableOpacity>
+                      )}
+                    />
+                    <TouchableOpacity
+                      style={styles.modalCancel}
+                      onPress={() => setSectorPickerOpen(false)}
+                    >
+                      <Text style={styles.modalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+            </>
           )}
 
           <Text style={styles.sectionTitle}>ID card photos (required)</Text>
@@ -354,8 +409,26 @@ const styles = StyleSheet.create({
       android: { elevation: 6 },
     }),
   },
-  logoWrap: { alignItems: "center", marginBottom: 12 },
-  logo: { width: 100, height: 50 },
+  logoWrap: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 9999,
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    padding: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  logo: { width: 72, height: 72 },
   logoFallback: { fontSize: 24, fontWeight: "700", color: colors.textOnGradient, letterSpacing: 2 },
   headerTitle: {
     fontSize: 22,
@@ -406,12 +479,40 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   inputReadOnly: { backgroundColor: colors.border + "20", color: colors.textSecondary },
+  pickerTouchable: { justifyContent: "center" },
+  pickerText: { fontSize: typography.bodySize, color: colors.textPrimary },
+  pickerPlaceholder: { fontSize: typography.bodySize, color: colors.textMuted },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    maxHeight: "70%",
+    paddingVertical: 12,
+  },
+  modalTitle: {
+    fontSize: typography.cardTitleSize,
+    fontWeight: typography.cardTitleWeight,
+    color: colors.textSecondary,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalOption: { paddingVertical: 14, paddingHorizontal: 16 },
+  modalOptionText: { fontSize: typography.bodySize, color: colors.textSecondary },
+  modalCancel: { paddingVertical: 14, paddingHorizontal: 16, marginTop: 8, alignItems: "center" },
+  modalCancelText: { fontSize: typography.bodySize, fontWeight: "600", color: colors.primary },
   row: { flexDirection: "row", gap: 10 },
   phoneCode: { width: 90 },
   phoneNum: { flex: 1 },
   errorWrap: { marginBottom: 16 },
   errorText: { fontSize: typography.smallSize, color: colors.error, marginBottom: 4 },
   errorSubtext: { fontSize: typography.smallSize, color: colors.textMuted, marginBottom: 8 },
+  errorHintTitle: { fontSize: typography.smallSize, fontWeight: "700", color: colors.textSecondary, marginTop: 8, marginBottom: 4 },
+  errorHintText: { fontSize: typography.smallSize, color: colors.textMuted, marginBottom: 6 },
   retryButton: {
     alignSelf: "flex-start",
     paddingVertical: 10,

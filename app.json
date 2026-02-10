@@ -31,7 +31,18 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": { "usesCleartextTraffic": true },
+          "ios": {
+            "infoPlist": {
+              "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
+            }
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
