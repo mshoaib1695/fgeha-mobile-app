@@ -19,9 +19,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth-context";
 import { useAppAlert } from "../../lib/alert-context";
-import { apiGet, apiPost, API_URL, unwrapList } from "../../lib/api";
+import { apiGet, apiPostForm, API_URL, unwrapList } from "../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 
 function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -44,6 +45,8 @@ export default function CreateRequestFormScreen() {
   const [requestTypeName, setRequestTypeName] = useState("");
   const [serviceOptionLabel, setServiceOptionLabel] = useState<string | null>(null);
   const [serviceOptionImageUrl, setServiceOptionImageUrl] = useState<string | null>(null);
+  const [issueImageRequirement, setIssueImageRequirement] = useState<"none" | "optional" | "required">("optional");
+  const [issueImage, setIssueImage] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [name, setName] = useState("");
   const [phoneCountryCode, setPhoneCountryCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -112,16 +115,33 @@ export default function CreateRequestFormScreen() {
       const oid = optionId ? parseInt(optionId, 10) : null;
       if (!oid || isNaN(oid)) {
         if (!cancelled) setServiceOptionLabel(null);
+        if (!cancelled) setIssueImageRequirement("optional");
         return;
       }
       try {
-        const opt = await apiGet<{ id: number; label: string; imageUrl?: string | null }>(`/request-type-options/${oid}`);
+        const opt = await apiGet<{
+          id: number;
+          label: string;
+          imageUrl?: string | null;
+          config?: { issueImage?: "none" | "optional" | "required" } | null;
+        }>(`/request-type-options/${oid}`);
         if (!cancelled) {
           if (opt?.label) setServiceOptionLabel(opt.label);
           setServiceOptionImageUrl(opt?.imageUrl?.trim() ? opt.imageUrl ?? null : null);
+          const req = opt?.config?.issueImage;
+          if (req === "none" || req === "optional" || req === "required") {
+            setIssueImageRequirement(req);
+            if (req === "none") setIssueImage(null);
+          } else {
+            setIssueImageRequirement("optional");
+          }
         }
       } catch {
-        if (!cancelled) setServiceOptionLabel(null), setServiceOptionImageUrl(null);
+        if (!cancelled) {
+          setServiceOptionLabel(null);
+          setServiceOptionImageUrl(null);
+          setIssueImageRequirement("optional");
+        }
       }
     })();
     return () => {
@@ -200,15 +220,30 @@ export default function CreateRequestFormScreen() {
       return;
     }
     const trimmed = description.trim();
+    if (issueImageRequirement === "required" && !issueImage) {
+      showError("Please upload a photo of the problem.");
+      return;
+    }
     setSubmitting(true);
     try {
-      const created = await apiPost<{ requestNumber?: string }>("/requests", {
-        requestTypeId,
-        houseNo: h,
-        streetNo: s,
-        subSectorId,
-        ...(trimmed ? { description: trimmed } : {}),
-      });
+      const formData = new FormData();
+      formData.append("requestTypeId", String(requestTypeId));
+      formData.append("houseNo", h);
+      formData.append("streetNo", s);
+      formData.append("subSectorId", String(subSectorId));
+      const oid = optionId ? parseInt(optionId, 10) : null;
+      if (oid != null && !isNaN(oid)) {
+        formData.append("requestTypeOptionId", String(oid));
+      }
+      if (trimmed) formData.append("description", trimmed);
+      if (issueImage) {
+        formData.append("issueImage", {
+          uri: issueImage.uri,
+          name: issueImage.name,
+          type: issueImage.type,
+        } as unknown as Blob);
+      }
+      const created = await apiPostForm<{ requestNumber?: string }>("/requests", formData);
       const requestNo = created?.requestNumber?.trim();
       showSuccess(
         requestNo
@@ -221,6 +256,26 @@ export default function CreateRequestFormScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePickIssueImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showError("Media permission is required to upload a photo.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsMultipleSelection: false,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    setIssueImage({
+      uri: asset.uri,
+      name: asset.fileName ?? `issue-${Date.now()}.jpg`,
+      type: asset.mimeType ?? "image/jpeg",
+    });
   };
 
   if (requestTypeId == null || isNaN(requestTypeId)) {
@@ -401,6 +456,39 @@ export default function CreateRequestFormScreen() {
               textAlignVertical="top"
               editable={!submitting}
             />
+            {issueImageRequirement !== "none" ? (
+              <>
+                <Text style={styles.label}>
+                  Photo of the issue {issueImageRequirement === "required" ? "(required)" : "(optional)"}
+                </Text>
+                {issueImage ? (
+                  <View style={styles.issueImagePreviewWrap}>
+                    <Image source={{ uri: issueImage.uri }} style={styles.issueImagePreview} resizeMode="cover" />
+                    <View style={styles.issueImageActions}>
+                      <TouchableOpacity
+                        style={styles.issueImageActionBtn}
+                        onPress={handlePickIssueImage}
+                        disabled={submitting}
+                      >
+                        <Text style={styles.issueImageActionText}>Change</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.issueImageActionBtn, styles.issueImageRemoveBtn]}
+                        onPress={() => setIssueImage(null)}
+                        disabled={submitting}
+                      >
+                        <Text style={styles.issueImageRemoveText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.issueImagePickerBtn} onPress={handlePickIssueImage} disabled={submitting}>
+                    <Ionicons name="image-outline" size={20} color={colors.primary} />
+                    <Text style={styles.issueImagePickerText}>Select a photo from gallery</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : null}
           </FieldGroup>
         </View>
 
@@ -605,6 +693,65 @@ const styles = StyleSheet.create({
   locationInfoCoords: {
     fontSize: typography.smallSize,
     color: colors.textSecondary,
+  },
+  issueImagePickerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: "#fafafa",
+    marginBottom: 14,
+  },
+  issueImagePickerText: {
+    fontSize: typography.smallSize,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  issueImagePreviewWrap: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: "#fafafa",
+    marginBottom: 14,
+  },
+  issueImagePreview: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 10,
+  },
+  issueImageActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  issueImageActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.cardBg,
+  },
+  issueImageActionText: {
+    color: colors.primary,
+    fontSize: typography.smallSize,
+    fontWeight: "600",
+  },
+  issueImageRemoveBtn: {
+    borderColor: "rgba(200,0,0,0.25)",
+    backgroundColor: "rgba(200,0,0,0.05)",
+  },
+  issueImageRemoveText: {
+    color: colors.error,
+    fontSize: typography.smallSize,
+    fontWeight: "600",
   },
   button: {
     borderRadius: 14,

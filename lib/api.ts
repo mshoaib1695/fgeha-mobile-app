@@ -39,11 +39,12 @@ export async function api<T>(
   const pathNorm = (path ?? "").startsWith("/") ? path : `/${path}`;
   const url = path.startsWith("http") ? path : `${base}${pathNorm}`;
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
     Accept: "application/json",
-    // Removed custom User-Agent - some servers/WAFs block custom User-Agents
     ...(options.headers ?? {}),
   };
+  if (!(options.body instanceof FormData) && !(headers as Record<string, string>)["Content-Type"]) {
+    (headers as Record<string, string>)["Content-Type"] = "application/json";
+  }
   if (token) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
@@ -97,6 +98,8 @@ export async function api<T>(
 export const apiGet = <T>(path: string) => api<T>(path, { method: "GET" });
 export const apiPost = <T>(path: string, body: unknown) =>
   api<T>(path, { method: "POST", body: JSON.stringify(body) });
+export const apiPostForm = <T>(path: string, body: FormData) =>
+  api<T>(path, { method: "POST", body });
 export const apiPatch = <T>(path: string, body: unknown) =>
   api<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 
