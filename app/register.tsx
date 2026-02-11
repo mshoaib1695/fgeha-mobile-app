@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -58,6 +58,7 @@ export default function Register() {
   const [sectorsError, setSectorsError] = useState<string | null>(null);
   const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const isHandlingAutoFillRef = useRef(false);
   const { register } = useAuth();
   const router = useRouter();
   const { showSuccess, showError, showInfo } = useAppAlert();
@@ -239,18 +240,105 @@ export default function Register() {
               placeholder="+92"
               placeholderTextColor={colors.textMuted}
               value={phoneCountryCode}
-              onChangeText={setPhoneCountryCode}
+              onChangeText={(text) => {
+                // Prevent auto-fill from updating this field incorrectly
+                if (isHandlingAutoFillRef.current) {
+                  // Ignore updates during auto-fill handling
+                  return;
+                }
+                // Only allow valid country code format: starts with + followed by 1-3 digits
+                // Reject if text is too long (likely auto-fill mistake) or doesn't match pattern
+                if (text.length > 4 || (!text.startsWith("+") && text.length > 0)) {
+                  // Invalid format, don't update
+                  return;
+                }
+                // Validate: must start with + and contain only + and digits
+                if (text === "" || (text.startsWith("+") && /^\+?\d{0,3}$/.test(text))) {
+                  setPhoneCountryCode(text);
+                }
+              }}
               keyboardType="phone-pad"
               editable={!loading}
+              textContentType="none"
+              autoComplete="off"
+              autoCorrect={false}
             />
             <TextInput
               style={[styles.input, styles.phoneNum]}
               placeholder="Phone number"
               placeholderTextColor={colors.textMuted}
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangeText={(text) => {
+                // Handle auto-fill: if text contains + or looks like a full phone number
+                if (text.includes("+") || (text.length > 10 && /^\d+$/.test(text))) {
+                  isHandlingAutoFillRef.current = true;
+                  
+                  // If text starts with +, extract country code and number
+                  if (text.startsWith("+")) {
+                    // Remove spaces first
+                    const cleanText = text.replace(/\s/g, "");
+                    
+                    // Prioritize "+92" (Pakistan) since it's the default
+                    // Check if it starts with "+92" specifically
+                    if (cleanText.startsWith("+92") && cleanText.length > 3) {
+                      // Extract "+92" as country code, rest as phone number
+                      const number = cleanText.substring(3).replace(/\D/g, "");
+                      if (phoneCountryCode === "+92" || phoneCountryCode === "") {
+                        setPhoneCountryCode("+92");
+                      }
+                      setPhoneNumber(number);
+                    } else {
+                      // For other country codes, try to match common patterns
+                      // Most country codes are 1-2 digits, some are 3 digits
+                      // Try to match: +1, +44, +91, +86, etc. (1-2 digits) or +123 (3 digits)
+                      const match = cleanText.match(/^(\+\d{1,2})(\d+)$/);
+                      if (match) {
+                        // Matched 1-2 digit country code
+                        const [, code, number] = match;
+                        if (phoneCountryCode === "+92" || phoneCountryCode === "") {
+                          setPhoneCountryCode(code);
+                        }
+                        setPhoneNumber(number);
+                      } else {
+                        // Try 3-digit country code as fallback
+                        const match3 = cleanText.match(/^(\+\d{3})(.*)$/);
+                        if (match3) {
+                          const [, code, number] = match3;
+                          if (phoneCountryCode === "+92" || phoneCountryCode === "") {
+                            setPhoneCountryCode(code);
+                          }
+                          setPhoneNumber(number.replace(/\D/g, ""));
+                        } else {
+                          // Fallback: remove + and non-digits
+                          setPhoneNumber(cleanText.replace(/[^\d]/g, ""));
+                        }
+                      }
+                    }
+                  } else if (text.length > 10) {
+                    // If it's a long number without +, it might be a full number
+                    // Keep it as is, but ensure country code is set
+                    if (phoneCountryCode === "+92" || phoneCountryCode === "") {
+                      setPhoneCountryCode("+92");
+                    }
+                    setPhoneNumber(text.replace(/\D/g, ""));
+                  } else {
+                    // Normal phone number input
+                    setPhoneNumber(text.replace(/\D/g, ""));
+                  }
+                  
+                  // Reset flag after a short delay
+                  setTimeout(() => {
+                    isHandlingAutoFillRef.current = false;
+                  }, 100);
+                } else {
+                  // Normal input: just update the phone number (digits only)
+                  setPhoneNumber(text.replace(/\D/g, ""));
+                }
+              }}
               keyboardType="phone-pad"
               editable={!loading}
+              textContentType="telephoneNumber"
+              autoComplete="tel"
             />
           </View>
 

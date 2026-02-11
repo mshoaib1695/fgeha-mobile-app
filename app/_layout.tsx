@@ -9,6 +9,7 @@ export default function RootLayout() {
       <Stack.Screen name="register" />
       <Stack.Screen name="pending" />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="create-request" options={{ headerShown: false }} />
     </Stack>
   );
 }

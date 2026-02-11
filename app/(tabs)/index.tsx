@@ -7,12 +7,14 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
   useWindowDimensions,
   Image,
+  BackHandler,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { apiGet, unwrapList } from "../../lib/api";
 import { useAppAlert } from "../../lib/alert-context";
 import { colors, gradientColors, tabScreenPaddingBottom } from "../../lib/theme";
@@ -82,15 +84,17 @@ const cardShadow = Platform.select({
 
 export default function HomeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const { showError } = useAppAlert();
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const loadRequestTypes = async () => {
-    setLoading(true);
+  const loadRequestTypes = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     setFetchError(null);
     try {
       const raw = await apiGet<unknown>("/request-types");
@@ -104,13 +108,63 @@ export default function HomeScreen() {
       setFetchError(msg);
       showError(msg);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadRequestTypes();
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadRequestTypes(false);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Handle device back button (Android hardware back button / iOS swipe back)
+  // Only navigate back if there's navigation history (e.g., came from Options screen)
+  useEffect(() => {
+    const handleBack = () => {
+      // Check if we can go back (i.e., there's navigation history)
+      if (navigation.canGoBack()) {
+        router.back();
+        return true; // Prevent default back behavior
+      }
+      // If no history, allow default behavior (do nothing or exit app)
+      return false;
+    };
+
+    // Handle Android back button
+    if (Platform.OS === "android") {
+      const handleBackPress = () => {
+        return handleBack();
+      };
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+      return () => {
+        if (backHandler) {
+          backHandler.remove();
+        }
+      };
+    }
+
+    // Handle iOS swipe back gesture
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      // Only prevent default if we can go back
+      if (navigation.canGoBack()) {
+        e.preventDefault();
+        router.back();
+      }
+      // If no history, allow default behavior
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [router, navigation]);
 
   const openRequestType = async (item: RequestType) => {
     if (item.underConstruction) {
@@ -125,10 +179,10 @@ export default function HomeScreen() {
       if (Array.isArray(options) && options.length > 0) {
         router.push({ pathname: "/(tabs)/request-type-options/[id]", params: { id: String(item.id) } });
       } else {
-        router.push(`/(tabs)/create-request/${item.id}`);
+        router.push(`/create-request/${item.id}`);
       }
     } catch {
-      router.push(`/(tabs)/create-request/${item.id}`);
+      router.push(`/create-request/${item.id}`);
     }
   };
 
@@ -152,7 +206,7 @@ export default function HomeScreen() {
           {fetchError ? fetchError : "No request types available."}
         </Text>
         {fetchError ? (
-          <TouchableOpacity style={styles.retryButton} onPress={loadRequestTypes} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => loadRequestTypes()} activeOpacity={0.8}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         ) : null}
@@ -174,10 +228,15 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom, paddingHorizontal: paddingH }]}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
       >
         <View style={styles.grid}>
         {requestTypes.map((item, index) => {
-          const fullWidth = isOthersType(item.slug, item.name);
+          const isLastItem = index === requestTypes.length - 1;
+          const isOddCountLastItem = requestTypes.length % 2 === 1 && isLastItem;
+          const fullWidth = isOddCountLastItem;
           const width = fullWidth ? winW - paddingH * 2 : cardWidth;
           const isFirstInRow = fullWidth || index % 2 === 0;
           const hasIcon = !!resolveIconUri(item.iconUrl);

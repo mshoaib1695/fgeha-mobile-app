@@ -21,6 +21,7 @@ interface RequestType {
 
 interface RequestItem {
   id: number;
+  requestNumber?: string;
   requestTypeId: number;
   description: string;
   status: string;
@@ -30,20 +31,24 @@ interface RequestItem {
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
+  cancelled: "Cancel",
   in_progress: "In progress",
-  done: "Done",
+  completed: "Completed",
+  done: "Completed",
 };
 
 function StatusPill({ status }: { status: string }) {
   const label = STATUS_LABELS[status] ?? status;
   const isPending = status === "pending";
+  const isCancelled = status === "cancelled";
   const isProgress = status === "in_progress";
-  const isDone = status === "done";
+  const isDone = status === "done" || status === "completed";
   return (
     <View
       style={[
         styles.statusPill,
         isPending && styles.statusPillPending,
+        isCancelled && styles.statusPillCancelled,
         isProgress && styles.statusPillProgress,
         isDone && styles.statusPillDone,
       ]}
@@ -52,6 +57,7 @@ function StatusPill({ status }: { status: string }) {
         style={[
           styles.statusPillText,
           isPending && styles.statusPillTextPending,
+          isCancelled && styles.statusPillTextCancelled,
           isProgress && styles.statusPillTextProgress,
           isDone && styles.statusPillTextDone,
         ]}
@@ -78,9 +84,14 @@ function RequestCard({ item }: { item: RequestItem }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.typeName} numberOfLines={2}>
-          {typeName}
-        </Text>
+        <View style={styles.cardHeaderLeft}>
+          <Text style={styles.typeName} numberOfLines={2}>
+            {typeName}
+          </Text>
+          {item.requestNumber ? (
+            <Text style={styles.requestNumber}>{item.requestNumber}</Text>
+          ) : null}
+        </View>
         <StatusPill status={item.status} />
       </View>
       <View style={styles.cardBody}>
@@ -255,11 +266,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 12,
   },
-  typeName: {
+  cardHeaderLeft: {
     flex: 1,
+    minWidth: 0,
+  },
+  typeName: {
     fontSize: 17,
     fontWeight: "700",
     color: colors.textPrimary,
+  },
+  requestNumber: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.primary,
   },
   cardBody: {},
   description: {
@@ -302,6 +322,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f9eb",
     borderWidth: 1,
     borderColor: "rgba(13, 148, 136, 0.5)",
+  },
+  statusPillCancelled: {
+    backgroundColor: "#fff1f0",
+    borderWidth: 1,
+    borderColor: "#ffa39e",
+  },
+  statusPillTextCancelled: {
+    color: "#cf1322",
+    fontSize: 12,
+    fontWeight: "600",
   },
   statusPillTextProgress: {
     color: colors.primary,

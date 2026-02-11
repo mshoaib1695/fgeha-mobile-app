@@ -477,6 +477,10 @@ export default function TabsLayout() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
+  const headerProfileImageUrl =
+    user?.profileImage && user.profileImage.trim()
+      ? `${API_URL.replace(/\/$/, "")}/${user.profileImage.replace(/^\//, "")}`
+      : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -510,10 +514,10 @@ export default function TabsLayout() {
       if (Array.isArray(options) && options.length > 0) {
         router.push({ pathname: "/(tabs)/request-type-options/[id]", params: { id: String(item.id) } });
       } else {
-        router.push(`/(tabs)/create-request/${item.id}`);
+        router.push(`/create-request/${item.id}`);
       }
     } catch {
-      router.push(`/(tabs)/create-request/${item.id}`);
+      router.push(`/create-request/${item.id}`);
     }
   };
 
@@ -551,7 +555,11 @@ export default function TabsLayout() {
         headerTintColor: colors.textPrimary,
         headerTitleAlign: "left",
         headerTitleStyle: { color: colors.textPrimary },
-        headerTitle: (props) => <HeaderTitle onLogoPress={() => setDrawerVisible(true)}>{(props.children as string) ?? ""}</HeaderTitle>,
+        headerTitle: (props) => (
+          <HeaderTitle onLogoPress={() => setDrawerVisible(true)} profileImageUrl={headerProfileImageUrl}>
+            {(props.children as string) ?? ""}
+          </HeaderTitle>
+        ),
         headerStyle: {
           backgroundColor: colors.cardBg,
           elevation: 2,
@@ -617,14 +625,6 @@ export default function TabsLayout() {
           title: "FGEHA - RSP",
           tabBarLabel: "Home",
           tabBarIcon: ({ focused, color, size }) => <TabIcon name="index" focused={focused} color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="create-request"
-        options={{
-          title: "New Request",
-          headerShown: false,
-          href: null,
         }}
       />
       <Tabs.Screen

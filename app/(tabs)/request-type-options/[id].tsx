@@ -9,6 +9,7 @@ import {
   Linking,
   Alert,
   Platform,
+  BackHandler,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -56,7 +57,7 @@ export default function RequestTypeOptionsScreen() {
         const opts = Array.isArray(list) ? list : [];
         setOptions(opts);
         if (opts.length === 0) {
-          router.replace(`/(tabs)/create-request/${requestTypeId}`);
+          router.replace(`/create-request/${requestTypeId}`);
           return;
         }
         const raw = await apiGet<unknown>("/request-types");
@@ -83,11 +84,52 @@ export default function RequestTypeOptionsScreen() {
     navigation.setOptions({ title });
   }, [navigation, title]);
 
+  // Handle device back button (Android hardware back button / iOS swipe back)
+  // Navigate back to maintain navigation history
+  useEffect(() => {
+    const handleBack = () => {
+      // Always navigate to Home
+      // Options is always accessed from Home, so we should always go back to Home
+      // Try router.back() first, but if it doesn't work, navigate explicitly
+      if (navigation.canGoBack()) {
+        router.back();
+      } else {
+        // No history - navigate to Home explicitly
+        // This handles cases where navigation history was lost
+        router.push("/(tabs)");
+      }
+    };
+
+    // Handle Android back button
+    if (Platform.OS === "android") {
+      const handleBackPress = () => {
+        handleBack();
+        return true; // Prevent default back behavior
+      };
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+      return () => {
+        if (backHandler) {
+          backHandler.remove();
+        }
+      };
+    }
+
+    // Handle iOS swipe back gesture
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      e.preventDefault();
+      handleBack();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [router, navigation]);
+
   const handleOptionPress = (opt: Option) => {
     if (opt.optionType === "form") {
       router.push({
-        pathname: "/(tabs)/create-request/[id]",
-        params: { id: String(requestTypeId), from: "options", optionId: String(opt.id) },
+        pathname: "/create-request/[id]",
+        params: { id: String(requestTypeId), optionId: String(opt.id) },
       });
       return;
     }
@@ -139,6 +181,26 @@ export default function RequestTypeOptionsScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
+        <TouchableOpacity 
+          style={styles.backBtnTop} 
+          onPress={() => {
+            // Navigate back to Home
+            // Options is always accessed from Home, so we should always be able to go back to Home
+            // Try router.back() first to maintain proper navigation history
+            if (navigation.canGoBack()) {
+              // If history exists, use router.back() to maintain proper navigation stack
+              router.back();
+            } else {
+              // If no history (shouldn't happen normally, but handle edge cases),
+              // navigate to Home explicitly - this ensures Options → Home always works
+              router.push("/(tabs)");
+            }
+          }} 
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
+          <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
         {options.map((opt) => (
           <TouchableOpacity
             key={opt.id}
@@ -150,10 +212,6 @@ export default function RequestTypeOptionsScreen() {
             <Text style={styles.optionHint}>{opt.optionType === "form" ? "Submit a request" : opt.optionType}</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={styles.backBtnText}>Back</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -214,12 +272,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 8,
     marginTop: 8,
   },
+  backBtnTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
   backBtnText: {
-    color: colors.primary,
-    fontSize: typography.smallSize,
+    fontSize: typography.bodySize,
     fontWeight: "600",
+    color: colors.primary,
   },
 });

@@ -3,17 +3,29 @@ import { colors } from "./theme";
 
 const logoSource = require("../assets/logo.png");
 
-/** Shared header title: logo + screen title (used in tabs and create-request stack). Logo is tappable when onLogoPress is provided. */
-export function HeaderTitle({ children, onLogoPress }: { children: string; onLogoPress?: () => void }) {
-  const logo = <Image source={logoSource} style={styles.logo} resizeMode="contain" />;
+/** Shared header title: profile image (if available) or logo + screen title. */
+export function HeaderTitle({
+  children,
+  onLogoPress,
+  profileImageUrl,
+}: {
+  children: string;
+  onLogoPress?: () => void;
+  profileImageUrl?: string | null;
+}) {
+  const visual = profileImageUrl ? (
+    <Image source={{ uri: profileImageUrl }} style={styles.avatar} resizeMode="cover" />
+  ) : (
+    <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+  );
   return (
     <View style={styles.titleRow}>
       {onLogoPress ? (
         <TouchableOpacity onPress={onLogoPress} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          {logo}
+          {visual}
         </TouchableOpacity>
       ) : (
-        logo
+        visual
       )}
       <Text style={styles.titleText} numberOfLines={1} ellipsizeMode="tail">
         {children}
@@ -34,6 +46,13 @@ const styles = StyleSheet.create({
   logo: {
     width: 30,
     height: 30,
+  },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   titleText: {
     color: colors.textPrimary,

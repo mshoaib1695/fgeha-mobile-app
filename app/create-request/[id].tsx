@@ -17,10 +17,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "../../../lib/auth-context";
-import { useAppAlert } from "../../../lib/alert-context";
-import { apiGet, apiPost, API_URL, unwrapList } from "../../../lib/api";
-import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
+import { useAuth } from "../../lib/auth-context";
+import { useAppAlert } from "../../lib/alert-context";
+import { apiGet, apiPost, API_URL, unwrapList } from "../../lib/api";
+import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 import * as Location from "expo-location";
 
 function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
@@ -33,10 +33,10 @@ function FieldGroup({ title, children }: { title: string; children: React.ReactN
 }
 
 export default function CreateRequestFormScreen() {
-  const { id, from, optionId } = useLocalSearchParams<{ id: string; from?: string; optionId?: string }>();
+  const { id, optionId } = useLocalSearchParams<{ id: string; optionId?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading: authLoading } = useAuth();
   const { showSuccess, showError } = useAppAlert();
   const requestTypeId = id ? parseInt(id, 10) : null;
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
@@ -59,6 +59,7 @@ export default function CreateRequestFormScreen() {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const userSyncedRef = useRef(false);
+  const refreshAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (!user) {
@@ -76,8 +77,16 @@ export default function CreateRequestFormScreen() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) refreshUser();
-  }, []);
+    // Only refresh if auth is not loading, user is null, and we haven't attempted refresh yet
+    if (!authLoading && !user && !refreshAttemptedRef.current) {
+      refreshAttemptedRef.current = true;
+      refreshUser().catch(() => {
+        // Reset on error so we can retry if needed
+        refreshAttemptedRef.current = false;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,15 +202,19 @@ export default function CreateRequestFormScreen() {
     const trimmed = description.trim();
     setSubmitting(true);
     try {
-      await apiPost("/requests", {
+      const created = await apiPost<{ requestNumber?: string }>("/requests", {
         requestTypeId,
         houseNo: h,
         streetNo: s,
         subSectorId,
         ...(trimmed ? { description: trimmed } : {}),
       });
-      showSuccess("Your request has been submitted. We'll process it as soon as possible.", () =>
-        router.back()
+      const requestNo = created?.requestNumber?.trim();
+      showSuccess(
+        requestNo
+          ? `Your request ${requestNo} has been submitted. We'll process it as soon as possible.`
+          : "Your request has been submitted. We'll process it as soon as possible.",
+        () => router.back(),
       );
     } catch (e) {
       showError((e as Error).message ?? "Something went wrong. Please try again.");
@@ -413,18 +426,10 @@ export default function CreateRequestFormScreen() {
 
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => {
-            if (from === "options" && requestTypeId != null) {
-              router.replace({ pathname: "/(tabs)/request-type-options/[id]", params: { id: String(requestTypeId) } });
-            } else {
-              router.back();
-            }
-          }}
+          onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Text style={styles.backBtnText}>
-            {from === "options" ? "← Back to options" : "← Back to request types"}
-          </Text>
+          <Text style={styles.backBtnText}>← Back</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
