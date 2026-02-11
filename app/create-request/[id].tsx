@@ -12,6 +12,7 @@ import {
   Modal,
   FlatList,
   Image,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -61,6 +62,7 @@ export default function CreateRequestFormScreen() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const userSyncedRef = useRef(false);
   const refreshAttemptedRef = useRef(false);
 
@@ -278,6 +280,21 @@ export default function CreateRequestFormScreen() {
     });
   };
 
+  const resolvedServiceOptionImageUrl = serviceOptionImageUrl
+    ? serviceOptionImageUrl.startsWith("http")
+      ? serviceOptionImageUrl
+      : `${API_URL.replace(/\/$/, "")}${serviceOptionImageUrl.startsWith("/") ? "" : "/"}${serviceOptionImageUrl}`
+    : null;
+
+  const handleOpenOrDownloadServiceImage = async () => {
+    if (!resolvedServiceOptionImageUrl) return;
+    try {
+      await Linking.openURL(resolvedServiceOptionImageUrl);
+    } catch {
+      showError("Could not open image link.");
+    }
+  };
+
   if (requestTypeId == null || isNaN(requestTypeId)) {
     return (
       <View style={styles.centered}>
@@ -311,13 +328,23 @@ export default function CreateRequestFormScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {serviceOptionImageUrl ? (
+        {resolvedServiceOptionImageUrl ? (
           <View style={styles.optionImageWrap}>
-            <Image
-              source={{ uri: serviceOptionImageUrl.startsWith("http") ? serviceOptionImageUrl : `${API_URL.replace(/\/$/, "")}${serviceOptionImageUrl.startsWith("/") ? "" : "/"}${serviceOptionImageUrl}` }}
-              style={styles.optionImage}
-              resizeMode="cover"
-            />
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setImagePreviewOpen(true)}
+              style={styles.optionImageTouchable}
+            >
+              <Image
+                source={{ uri: resolvedServiceOptionImageUrl }}
+                style={styles.optionImage}
+                resizeMode="cover"
+              />
+              <View style={styles.optionImageOverlay}>
+                <Ionicons name="expand-outline" size={16} color="#fff" />
+                <Text style={styles.optionImageOverlayText}>Tap to view full image</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         ) : null}
         <View style={styles.card}>
@@ -520,6 +547,38 @@ export default function CreateRequestFormScreen() {
           <Text style={styles.backBtnText}>← Back</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={imagePreviewOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImagePreviewOpen(false)}
+      >
+        <View style={styles.imagePreviewOverlay}>
+          <TouchableOpacity
+            style={styles.imagePreviewClose}
+            onPress={() => setImagePreviewOpen(false)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {resolvedServiceOptionImageUrl ? (
+            <Image
+              source={{ uri: resolvedServiceOptionImageUrl }}
+              style={styles.imagePreviewImage}
+              resizeMode="contain"
+            />
+          ) : null}
+          <TouchableOpacity
+            style={styles.imagePreviewDownloadBtn}
+            onPress={handleOpenOrDownloadServiceImage}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="download-outline" size={18} color="#fff" />
+            <Text style={styles.imagePreviewDownloadText}>Download / Open in browser</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -566,10 +625,71 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
+  optionImageTouchable: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
   optionImage: {
     width: "100%",
     aspectRatio: 16 / 9,
     borderRadius: 12,
+  },
+  optionImageOverlay: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  optionImageOverlayText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  imagePreviewClose: {
+    position: "absolute",
+    top: 42,
+    right: 18,
+    zIndex: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imagePreviewImage: {
+    width: "100%",
+    height: "74%",
+  },
+  imagePreviewDownloadBtn: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  imagePreviewDownloadText: {
+    color: "#fff",
+    fontSize: typography.smallSize,
+    fontWeight: "700",
   },
   card: {
     backgroundColor: colors.cardBg,
