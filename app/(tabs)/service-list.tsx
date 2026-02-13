@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   Pressable,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -56,10 +57,15 @@ const cardShadow = Platform.select({
 });
 
 export default function ServiceListScreen() {
-  const { requestTypeId, listKey } = useLocalSearchParams<{ requestTypeId?: string; listKey?: string }>();
+  const { requestTypeId, listKey, optionId } = useLocalSearchParams<{
+    requestTypeId?: string;
+    listKey?: string;
+    optionId?: string;
+  }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const key = listKey ?? "daily_bulletin";
+  const [optionImageUrl, setOptionImageUrl] = useState<string | null>(null);
   const [bulletin, setBulletin] = useState<Bulletin | null>(null);
   const [byDateBulletin, setByDateBulletin] = useState<Bulletin | null>(null);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
@@ -71,6 +77,22 @@ export default function ServiceListScreen() {
   const [calendarMonth, setCalendarMonth] = useState(now.getMonth());
 
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
+
+  useEffect(() => {
+    const oid = optionId ? parseInt(optionId, 10) : null;
+    if (!oid || Number.isNaN(oid)) {
+      setOptionImageUrl(null);
+      return;
+    }
+    (async () => {
+      try {
+        const option = await apiGet<{ imageUrl?: string | null }>(`/request-type-options/${oid}`);
+        setOptionImageUrl(option?.imageUrl?.trim() ? option.imageUrl : null);
+      } catch {
+        setOptionImageUrl(null);
+      }
+    })();
+  }, [optionId]);
 
   useEffect(() => {
     if (key !== "daily_bulletin") return;
@@ -114,6 +136,11 @@ export default function ServiceListScreen() {
     const url = filePath.startsWith("http") ? filePath : `${API_URL.replace(/\/$/, "")}/${filePath}`;
     Linking.openURL(url);
   };
+  const resolvedOptionImageUrl = optionImageUrl
+    ? optionImageUrl.startsWith("http")
+      ? optionImageUrl
+      : `${API_URL.replace(/\/$/, "")}${optionImageUrl.startsWith("/") ? "" : "/"}${optionImageUrl}`
+    : null;
 
   if (key === "requests") {
     return (
@@ -124,6 +151,11 @@ export default function ServiceListScreen() {
           <Text style={styles.headerSubtitle}>View and track in My Requests</Text>
         </LinearGradient>
         <View style={[styles.content, { paddingBottom }]}>
+          {resolvedOptionImageUrl ? (
+            <View style={styles.optionImageWrap}>
+              <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
+            </View>
+          ) : null}
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.body}>View and track your requests in My Requests.</Text>
             <TouchableOpacity
@@ -159,6 +191,11 @@ export default function ServiceListScreen() {
           <Text style={styles.headerSubtitle}>No content configured</Text>
         </LinearGradient>
         <View style={[styles.content, { paddingBottom }]}>
+          {resolvedOptionImageUrl ? (
+            <View style={styles.optionImageWrap}>
+              <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
+            </View>
+          ) : null}
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.body}>No content configured for this list type.</Text>
           </View>
@@ -194,6 +231,11 @@ export default function ServiceListScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
+        {resolvedOptionImageUrl ? (
+          <View style={styles.optionImageWrap}>
+            <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
+          </View>
+        ) : null}
         {bulletin ? (
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.cardLabel}>Today</Text>
@@ -374,6 +416,16 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 24 },
+  optionImageWrap: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  optionImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 14,
+  },
   card: {
     backgroundColor: colors.cardBg,
     borderRadius: 20,

@@ -137,7 +137,7 @@ export default function RequestTypeOptionsScreen() {
       const listKey = opt.config?.listKey ?? "daily_bulletin";
       router.push({
         pathname: "/(tabs)/service-list",
-        params: { requestTypeId: String(requestTypeId), listKey },
+        params: { requestTypeId: String(requestTypeId), listKey, optionId: String(opt.id) },
       });
       return;
     }

@@ -7,12 +7,13 @@ import {
   ScrollView,
   Platform,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiGet } from "../../lib/api";
+import { apiGet, API_URL } from "../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 
 type RuleItem = { description?: string };
@@ -20,6 +21,7 @@ type Option = {
   id: number;
   label: string;
   optionType: string;
+  imageUrl?: string | null;
   config: { content?: string; rules?: RuleItem[] } | null;
 };
 
@@ -84,6 +86,11 @@ export default function ServiceRulesScreen() {
   const hasRules = rulesList.length > 0 && rulesList.some((r) => (r.description ?? "").trim());
   const fallbackContent = (config.content ?? "").trim();
   const filteredRules = hasRules ? rulesList.filter((r) => (r.description ?? "").trim()) : [];
+  const resolvedOptionImageUrl = option.imageUrl?.trim()
+    ? option.imageUrl.startsWith("http")
+      ? option.imageUrl
+      : `${API_URL.replace(/\/$/, "")}${option.imageUrl.startsWith("/") ? "" : "/"}${option.imageUrl}`
+    : null;
 
   return (
     <View style={styles.container}>
@@ -97,6 +104,11 @@ export default function ServiceRulesScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
+        {resolvedOptionImageUrl ? (
+          <View style={styles.optionImageWrap}>
+            <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
+          </View>
+        ) : null}
         {filteredRules.length > 0 ? (
           filteredRules.map((rule, index) => (
             <View key={index} style={[styles.card, cardShadow, styles.cardSpaced]}>
@@ -169,6 +181,16 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 24 },
+  optionImageWrap: {
+    marginBottom: 16,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  optionImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 14,
+  },
   card: {
     backgroundColor: colors.cardBg,
     borderRadius: 20,
