@@ -41,6 +41,8 @@ export default function ServiceRulesScreen() {
   const [option, setOption] = useState<Option | null>(null);
   const [loading, setLoading] = useState(true);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!optionId) {
@@ -107,6 +109,15 @@ export default function ServiceRulesScreen() {
     : null;
   useEffect(() => {
     if (!resolvedOptionImageUrl) setImagePreviewOpen(false);
+  }, [resolvedOptionImageUrl]);
+  useEffect(() => {
+    if (!resolvedOptionImageUrl) {
+      setImageLoading(false);
+      setImageLoadFailed(false);
+      return;
+    }
+    setImageLoading(true);
+    setImageLoadFailed(false);
   }, [resolvedOptionImageUrl]);
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (e) => {
@@ -177,17 +188,43 @@ export default function ServiceRulesScreen() {
       >
         {resolvedOptionImageUrl ? (
           <View style={styles.optionImageWrap}>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => setImagePreviewOpen(true)}
-              style={styles.optionImageTouchable}
-            >
-              <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
-              <View style={styles.optionImageOverlay}>
-                <Ionicons name="expand-outline" size={16} color="#fff" />
-                <Text style={styles.optionImageOverlayText}>Tap to view full image</Text>
+            {imageLoadFailed ? (
+              <View style={styles.imageLoadErrorWrap}>
+                <Ionicons name="warning-outline" size={18} color={colors.error} />
+                <Text style={styles.imageLoadErrorText}>Image could not be loaded.</Text>
               </View>
-            </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setImagePreviewOpen(true)}
+                style={styles.optionImageTouchable}
+              >
+                <Image
+                  source={{ uri: resolvedOptionImageUrl }}
+                  style={styles.optionImage}
+                  resizeMode="cover"
+                  onLoadStart={() => {
+                    setImageLoading(true);
+                    setImageLoadFailed(false);
+                  }}
+                  onLoadEnd={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageLoading(false);
+                    setImageLoadFailed(true);
+                  }}
+                />
+                {imageLoading ? (
+                  <View style={styles.imageLoadingOverlay}>
+                    <ActivityIndicator size="small" color="#fff" />
+                    <Text style={styles.imageLoadingText}>Loading image…</Text>
+                  </View>
+                ) : null}
+                <View style={styles.optionImageOverlay}>
+                  <Ionicons name="expand-outline" size={16} color="#fff" />
+                  <Text style={styles.optionImageOverlayText}>Tap to view full image</Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         ) : null}
         {filteredRules.length > 0 ? (
@@ -318,6 +355,36 @@ const styles = StyleSheet.create({
   optionImageOverlayText: {
     color: "#fff",
     fontSize: 12,
+    fontWeight: "600",
+  },
+  imageLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.42)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  imageLoadingText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  imageLoadErrorWrap: {
+    borderWidth: 1,
+    borderColor: "rgba(200,0,0,0.25)",
+    backgroundColor: "rgba(200,0,0,0.05)",
+    borderRadius: 14,
+    minHeight: 84,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  imageLoadErrorText: {
+    color: colors.error,
+    fontSize: typography.smallSize,
     fontWeight: "600",
   },
   imagePreviewOverlay: {
