@@ -72,6 +72,7 @@ export default function ServiceListScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingDate, setLoadingDate] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const now = new Date();
   const [calendarYear, setCalendarYear] = useState(now.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(now.getMonth());
@@ -141,6 +142,58 @@ export default function ServiceListScreen() {
       ? optionImageUrl
       : `${API_URL.replace(/\/$/, "")}${optionImageUrl.startsWith("/") ? "" : "/"}${optionImageUrl}`
     : null;
+  const handleOpenOrDownloadServiceImage = async () => {
+    if (!resolvedOptionImageUrl) return;
+    try {
+      await Linking.openURL(resolvedOptionImageUrl);
+    } catch {
+      // Keep silent if url cannot be opened on device
+    }
+  };
+  const optionImageBlock = resolvedOptionImageUrl ? (
+    <View style={styles.optionImageWrap}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setImagePreviewOpen(true)}
+        style={styles.optionImageTouchable}
+      >
+        <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
+        <View style={styles.optionImageOverlay}>
+          <Ionicons name="expand-outline" size={16} color="#fff" />
+          <Text style={styles.optionImageOverlayText}>Tap to view full image</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  ) : null;
+  const imagePreviewModal = (
+    <Modal
+      visible={imagePreviewOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setImagePreviewOpen(false)}
+    >
+      <View style={styles.imagePreviewOverlay}>
+        <TouchableOpacity
+          style={styles.imagePreviewClose}
+          onPress={() => setImagePreviewOpen(false)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="close" size={24} color="#fff" />
+        </TouchableOpacity>
+        {resolvedOptionImageUrl ? (
+          <Image source={{ uri: resolvedOptionImageUrl }} style={styles.imagePreviewImage} resizeMode="contain" />
+        ) : null}
+        <TouchableOpacity
+          style={styles.imagePreviewDownloadBtn}
+          onPress={handleOpenOrDownloadServiceImage}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="download-outline" size={18} color="#fff" />
+          <Text style={styles.imagePreviewDownloadText}>Download / Open in browser</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
 
   if (key === "requests") {
     return (
@@ -151,11 +204,7 @@ export default function ServiceListScreen() {
           <Text style={styles.headerSubtitle}>View and track in My Requests</Text>
         </LinearGradient>
         <View style={[styles.content, { paddingBottom }]}>
-          {resolvedOptionImageUrl ? (
-            <View style={styles.optionImageWrap}>
-              <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
-            </View>
-          ) : null}
+          {optionImageBlock}
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.body}>View and track your requests in My Requests.</Text>
             <TouchableOpacity
@@ -178,6 +227,7 @@ export default function ServiceListScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {imagePreviewModal}
       </View>
     );
   }
@@ -191,11 +241,7 @@ export default function ServiceListScreen() {
           <Text style={styles.headerSubtitle}>No content configured</Text>
         </LinearGradient>
         <View style={[styles.content, { paddingBottom }]}>
-          {resolvedOptionImageUrl ? (
-            <View style={styles.optionImageWrap}>
-              <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
-            </View>
-          ) : null}
+          {optionImageBlock}
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.body}>No content configured for this list type.</Text>
           </View>
@@ -204,6 +250,7 @@ export default function ServiceListScreen() {
             <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
         </View>
+        {imagePreviewModal}
       </View>
     );
   }
@@ -231,11 +278,7 @@ export default function ServiceListScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
-        {resolvedOptionImageUrl ? (
-          <View style={styles.optionImageWrap}>
-            <Image source={{ uri: resolvedOptionImageUrl }} style={styles.optionImage} resizeMode="cover" />
-          </View>
-        ) : null}
+        {optionImageBlock}
         {bulletin ? (
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.cardLabel}>Today</Text>
@@ -375,6 +418,7 @@ export default function ServiceListScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      {imagePreviewModal}
     </View>
   );
 }
@@ -421,10 +465,71 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 16,
   },
+  optionImageTouchable: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
   optionImage: {
     width: "100%",
     aspectRatio: 16 / 9,
     borderRadius: 14,
+  },
+  optionImageOverlay: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  optionImageOverlayText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  imagePreviewClose: {
+    position: "absolute",
+    top: 42,
+    right: 18,
+    zIndex: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imagePreviewImage: {
+    width: "100%",
+    height: "74%",
+  },
+  imagePreviewDownloadBtn: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  imagePreviewDownloadText: {
+    color: "#fff",
+    fontSize: typography.smallSize,
+    fontWeight: "700",
   },
   card: {
     backgroundColor: colors.cardBg,
