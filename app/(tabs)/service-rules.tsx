@@ -10,10 +10,11 @@ import {
   Image,
   Linking,
   Modal,
+  BackHandler,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, API_URL } from "../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
@@ -21,6 +22,7 @@ import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../.
 type RuleItem = { description?: string };
 type Option = {
   id: number;
+  requestTypeId?: number;
   label: string;
   optionType: string;
   imageUrl?: string | null;
@@ -28,15 +30,25 @@ type Option = {
 };
 
 export default function ServiceRulesScreen() {
-  const { optionId } = useLocalSearchParams<{ optionId?: string }>();
+  const { optionId, optionImageUrl, requestTypeId } = useLocalSearchParams<{
+    optionId?: string;
+    optionImageUrl?: string;
+    requestTypeId?: string;
+  }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [option, setOption] = useState<Option | null>(null);
   const [loading, setLoading] = useState(true);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
 
   useEffect(() => {
-    if (!optionId) return;
+    if (!optionId) {
+      setOption(null);
+      setLoading(false);
+      setImagePreviewOpen(false);
+      return;
+    }
     (async () => {
       setLoading(true);
       try {
@@ -51,6 +63,59 @@ export default function ServiceRulesScreen() {
   }, [optionId]);
 
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
+  const parsedRequestTypeId = requestTypeId ? parseInt(requestTypeId, 10) : null;
+  const resolvedRequestTypeId =
+    parsedRequestTypeId && !Number.isNaN(parsedRequestTypeId)
+      ? parsedRequestTypeId
+      : option?.requestTypeId != null
+        ? option.requestTypeId
+        : null;
+  const goBackToOptions = () => {
+    if (resolvedRequestTypeId != null) {
+      router.replace({
+        pathname: "/(tabs)/request-type-options/[id]",
+        params: { id: String(resolvedRequestTypeId) },
+      });
+      return;
+    }
+    router.back();
+  };
+  useEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: false,
+      headerLeft: () => (
+        <TouchableOpacity onPress={goBackToOptions} style={{ marginLeft: 8, padding: 6 }} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, resolvedRequestTypeId]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      goBackToOptions();
+      return true;
+    });
+    return () => sub.remove();
+  }, [resolvedRequestTypeId]);
+
+  const sourceOptionImageUrl = option?.imageUrl?.trim() || optionImageUrl?.trim() || "";
+  const resolvedOptionImageUrl = sourceOptionImageUrl
+    ? sourceOptionImageUrl.startsWith("http")
+      ? sourceOptionImageUrl
+      : `${API_URL.replace(/\/$/, "")}${sourceOptionImageUrl.startsWith("/") ? "" : "/"}${sourceOptionImageUrl}`
+    : null;
+  useEffect(() => {
+    if (!resolvedOptionImageUrl) setImagePreviewOpen(false);
+  }, [resolvedOptionImageUrl]);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (resolvedRequestTypeId == null) return;
+      e.preventDefault();
+      goBackToOptions();
+    });
+    return unsubscribe;
+  }, [navigation, resolvedRequestTypeId]);
 
   if (loading) {
     return (
@@ -75,7 +140,7 @@ export default function ServiceRulesScreen() {
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.emptyText}>Rules not found.</Text>
           </View>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
             <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
@@ -89,11 +154,6 @@ export default function ServiceRulesScreen() {
   const hasRules = rulesList.length > 0 && rulesList.some((r) => (r.description ?? "").trim());
   const fallbackContent = (config.content ?? "").trim();
   const filteredRules = hasRules ? rulesList.filter((r) => (r.description ?? "").trim()) : [];
-  const resolvedOptionImageUrl = option.imageUrl?.trim()
-    ? option.imageUrl.startsWith("http")
-      ? option.imageUrl
-      : `${API_URL.replace(/\/$/, "")}${option.imageUrl.startsWith("/") ? "" : "/"}${option.imageUrl}`
-    : null;
   const handleOpenOrDownloadServiceImage = async () => {
     if (!resolvedOptionImageUrl) return;
     try {
@@ -144,7 +204,7 @@ export default function ServiceRulesScreen() {
             <Text style={styles.body}>{fallbackContent || "No rules content set."}</Text>
           </View>
         )}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
           <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>

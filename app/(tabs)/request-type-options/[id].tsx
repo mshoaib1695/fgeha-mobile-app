@@ -6,10 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Linking,
-  Alert,
   Platform,
-  BackHandler,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -24,8 +21,28 @@ interface Option {
   requestTypeId: number;
   label: string;
   optionType: OptionType;
+  imageUrl?: string | null;
   config: { listKey?: string; content?: string; url?: string } | null;
   displayOrder: number;
+}
+
+function getOptionHint(opt: Option): string {
+  if (opt.optionType === "form") return "Submit a request";
+  if (opt.optionType === "list") return "Open list";
+  if (opt.optionType === "rules") return "View rules";
+  if (opt.optionType === "link") return "Open link";
+  return opt.optionType;
+}
+
+function getLinkHost(rawUrl?: string): string | null {
+  const value = (rawUrl ?? "").trim();
+  if (!value) return null;
+  try {
+    const normalized = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    return new URL(normalized).host || value;
+  } catch {
+    return value;
+  }
 }
 
 const cardShadow = Platform.select({
@@ -84,47 +101,6 @@ export default function RequestTypeOptionsScreen() {
     navigation.setOptions({ title });
   }, [navigation, title]);
 
-  // Handle device back button (Android hardware back button / iOS swipe back)
-  // Navigate back to maintain navigation history
-  useEffect(() => {
-    const handleBack = () => {
-      // Always navigate to Home
-      // Options is always accessed from Home, so we should always go back to Home
-      // Try router.back() first, but if it doesn't work, navigate explicitly
-      if (navigation.canGoBack()) {
-        router.back();
-      } else {
-        // No history - navigate to Home explicitly
-        // This handles cases where navigation history was lost
-        router.push("/(tabs)");
-      }
-    };
-
-    // Handle Android back button
-    if (Platform.OS === "android") {
-      const handleBackPress = () => {
-        handleBack();
-        return true; // Prevent default back behavior
-      };
-      const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
-      return () => {
-        if (backHandler) {
-          backHandler.remove();
-        }
-      };
-    }
-
-    // Handle iOS swipe back gesture
-    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      e.preventDefault();
-      handleBack();
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [router, navigation]);
-
   const handleOptionPress = (opt: Option) => {
     if (opt.optionType === "form") {
       router.push({
@@ -144,15 +120,22 @@ export default function RequestTypeOptionsScreen() {
     if (opt.optionType === "rules") {
       router.push({
         pathname: "/(tabs)/service-rules",
-        params: { optionId: String(opt.id) },
+        params: {
+          optionId: String(opt.id),
+          requestTypeId: String(requestTypeId),
+          optionImageUrl: opt.imageUrl ?? "",
+        },
       });
       return;
     }
     if (opt.optionType === "link" && opt.config?.url) {
-      const url = opt.config.url;
-      Linking.canOpenURL(url).then((can) => {
-        if (can) Linking.openURL(url);
-        else Alert.alert("Error", "Cannot open link.");
+      router.push({
+        pathname: "/(tabs)/service-link",
+        params: {
+          optionId: String(opt.id),
+          title: opt.label,
+          url: opt.config.url,
+        },
       });
     }
   };
@@ -184,15 +167,9 @@ export default function RequestTypeOptionsScreen() {
         <TouchableOpacity 
           style={styles.backBtnTop} 
           onPress={() => {
-            // Navigate back to Home
-            // Options is always accessed from Home, so we should always be able to go back to Home
-            // Try router.back() first to maintain proper navigation history
             if (navigation.canGoBack()) {
-              // If history exists, use router.back() to maintain proper navigation stack
               router.back();
             } else {
-              // If no history (shouldn't happen normally, but handle edge cases),
-              // navigate to Home explicitly - this ensures Options → Home always works
               router.push("/(tabs)");
             }
           }} 
@@ -204,12 +181,24 @@ export default function RequestTypeOptionsScreen() {
         {options.map((opt) => (
           <TouchableOpacity
             key={opt.id}
-            style={[styles.optionCard, cardShadow]}
+            style={[styles.optionCard, cardShadow, opt.optionType === "link" && styles.optionCardLink]}
             onPress={() => handleOptionPress(opt)}
             activeOpacity={0.78}
           >
             <Text style={styles.optionLabel}>{opt.label}</Text>
-            <Text style={styles.optionHint}>{opt.optionType === "form" ? "Submit a request" : opt.optionType}</Text>
+            <View style={styles.optionMetaRow}>
+              {opt.optionType === "link" ? (
+                <Ionicons name="open-outline" size={15} color={colors.primary} />
+              ) : null}
+              <Text style={[styles.optionHint, opt.optionType === "link" && styles.optionHintLink]}>
+                {getOptionHint(opt)}
+              </Text>
+            </View>
+            {opt.optionType === "link" ? (
+              <Text style={styles.optionLinkHost} numberOfLines={1}>
+                {getLinkHost(opt.config?.url) ?? "External website"}
+              </Text>
+            ) : null}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -257,16 +246,35 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
+  optionCardLink: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBg,
+  },
   optionLabel: {
     fontSize: typography.cardTitleSize,
     fontWeight: typography.cardTitleWeight,
     color: colors.textPrimary,
   },
+  optionMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
   optionHint: {
     fontSize: typography.smallSize,
     lineHeight: typography.smallLineHeight,
     color: colors.textSecondary,
-    marginTop: 4,
+  },
+  optionHintLink: {
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  optionLinkHost: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   backBtn: {
     flexDirection: "row",

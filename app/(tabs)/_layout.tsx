@@ -640,6 +640,10 @@ export default function TabsLayout() {
         options={{ title: "Rules", headerShown: true, href: null }}
       />
       <Tabs.Screen
+        name="service-link"
+        options={{ title: "Link", headerShown: true, href: null }}
+      />
+      <Tabs.Screen
         name="under-construction"
         options={{ title: "Maintenance", headerShown: true, href: null }}
       />

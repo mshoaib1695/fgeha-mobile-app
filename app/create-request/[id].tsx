@@ -117,7 +117,9 @@ export default function CreateRequestFormScreen() {
       const oid = optionId ? parseInt(optionId, 10) : null;
       if (!oid || isNaN(oid)) {
         if (!cancelled) setServiceOptionLabel(null);
+        if (!cancelled) setServiceOptionImageUrl(null);
         if (!cancelled) setIssueImageRequirement("optional");
+        if (!cancelled) setImagePreviewOpen(false);
         return;
       }
       try {
@@ -285,6 +287,10 @@ export default function CreateRequestFormScreen() {
       ? serviceOptionImageUrl
       : `${API_URL.replace(/\/$/, "")}${serviceOptionImageUrl.startsWith("/") ? "" : "/"}${serviceOptionImageUrl}`
     : null;
+
+  useEffect(() => {
+    if (!resolvedServiceOptionImageUrl) setImagePreviewOpen(false);
+  }, [resolvedServiceOptionImageUrl]);
 
   const handleOpenOrDownloadServiceImage = async () => {
     if (!resolvedServiceOptionImageUrl) return;

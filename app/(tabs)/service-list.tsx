@@ -11,10 +11,11 @@ import {
   Modal,
   Pressable,
   Image,
+  BackHandler,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet } from "../../lib/api";
 import { API_URL } from "../../lib/api";
@@ -63,6 +64,7 @@ export default function ServiceListScreen() {
     optionId?: string;
   }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const key = listKey ?? "daily_bulletin";
   const [optionImageUrl, setOptionImageUrl] = useState<string | null>(null);
@@ -78,11 +80,52 @@ export default function ServiceListScreen() {
   const [calendarMonth, setCalendarMonth] = useState(now.getMonth());
 
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
+  const parsedRequestTypeId = requestTypeId ? parseInt(requestTypeId, 10) : null;
+  const resolvedRequestTypeId = parsedRequestTypeId && !Number.isNaN(parsedRequestTypeId) ? parsedRequestTypeId : null;
+  const goBackToOptions = () => {
+    if (resolvedRequestTypeId != null) {
+      router.replace({
+        pathname: "/(tabs)/request-type-options/[id]",
+        params: { id: String(resolvedRequestTypeId) },
+      });
+      return;
+    }
+    router.back();
+  };
+
+  useEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: false,
+      headerLeft: () => (
+        <TouchableOpacity onPress={goBackToOptions} style={{ marginLeft: 8, padding: 6 }} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={colors.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, resolvedRequestTypeId]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      goBackToOptions();
+      return true;
+    });
+    return () => sub.remove();
+  }, [resolvedRequestTypeId]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (resolvedRequestTypeId == null) return;
+      e.preventDefault();
+      goBackToOptions();
+    });
+    return unsubscribe;
+  }, [navigation, resolvedRequestTypeId]);
 
   useEffect(() => {
     const oid = optionId ? parseInt(optionId, 10) : null;
     if (!oid || Number.isNaN(oid)) {
       setOptionImageUrl(null);
+      setImagePreviewOpen(false);
       return;
     }
     (async () => {
@@ -142,6 +185,9 @@ export default function ServiceListScreen() {
       ? optionImageUrl
       : `${API_URL.replace(/\/$/, "")}${optionImageUrl.startsWith("/") ? "" : "/"}${optionImageUrl}`
     : null;
+  useEffect(() => {
+    if (!resolvedOptionImageUrl) setImagePreviewOpen(false);
+  }, [resolvedOptionImageUrl]);
   const handleOpenOrDownloadServiceImage = async () => {
     if (!resolvedOptionImageUrl) return;
     try {
@@ -209,7 +255,7 @@ export default function ServiceListScreen() {
             <Text style={styles.body}>View and track your requests in My Requests.</Text>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => router.replace("/(tabs)/my-requests")}
+              onPress={() => router.push("/(tabs)/my-requests")}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -221,7 +267,7 @@ export default function ServiceListScreen() {
                 <Text style={styles.primaryButtonText}>Open My Requests</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
               <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
               <Text style={styles.backBtnText}>Back</Text>
             </TouchableOpacity>
@@ -245,7 +291,7 @@ export default function ServiceListScreen() {
           <View style={[styles.card, cardShadow]}>
             <Text style={styles.body}>No content configured for this list type.</Text>
           </View>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
             <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
@@ -354,7 +400,7 @@ export default function ServiceListScreen() {
           ) : null}
         </View>
 
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
           <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>
