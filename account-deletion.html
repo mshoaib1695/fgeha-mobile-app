@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FGEHA - Resident Service Portal | Account Deletion Request</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --card: #ffffff;
+        --text: #17202a;
+        --muted: #4f5b67;
+        --primary: #0d9488;
+        --border: #d7e1ea;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.55;
+      }
+
+      .container {
+        max-width: 860px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 10px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+      }
+
+      ul {
+        margin: 8px 0 0 20px;
+      }
+
+      .tag {
+        display: inline-block;
+        background: #e6f7f5;
+        color: #0f766e;
+        border: 1px solid #b7ece8;
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      label {
+        font-weight: 700;
+        font-size: 14px;
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      .btn {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 11px 16px;
+        background: var(--primary);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .note {
+        font-size: 13px;
+      }
+
+      @media (max-width: 700px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <span class="tag">Google Play Account Deletion</span>
+        <h1>FGEHA - Resident Service Portal</h1>
+        <p>
+          This page explains how users can request account deletion and deletion of associated data for the
+          <strong>FGEHA - Resident Service Portal</strong> app.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>How to request account deletion</h2>
+        <ul>
+          <li>Fill out the request form below and click <strong>Send request</strong>.</li>
+          <li>If your email app does not open, send the same details manually to the support email.</li>
+          <li>Include the account email used in the app so we can locate your account.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>What data is deleted</h2>
+        <ul>
+          <li>Account profile and authentication records linked to your app account.</li>
+          <li>Submitted service request history linked to your account, unless legal retention is required.</li>
+          <li>Uploaded request attachments (such as photos) linked to your account, unless retention is required.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>What data may be retained</h2>
+        <ul>
+          <li>Security, audit, and fraud-prevention logs required for legal or operational purposes.</li>
+          <li>Records that must be retained to comply with applicable laws and public service obligations.</li>
+        </ul>
+        <p>
+          Standard deletion processing time: <strong>up to 30 days</strong> from successful identity verification.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Submit deletion request</h2>
+        <form id="delete-form" class="grid">
+          <div>
+            <label for="fullName">Full name</label>
+            <input id="fullName" name="fullName" type="text" placeholder="Your full name" required />
+          </div>
+          <div>
+            <label for="accountEmail">Account email</label>
+            <input id="accountEmail" name="accountEmail" type="email" placeholder="you@example.com" required />
+          </div>
+          <div class="full">
+            <label for="details">Additional details (optional)</label>
+            <textarea id="details" name="details" placeholder="Any extra information to help verify your request"></textarea>
+          </div>
+          <div class="full">
+            <button class="btn" type="submit">Send request</button>
+          </div>
+        </form>
+        <p class="note">
+          Support email:
+          <a href="mailto:support@fgeha.gov.pk">support@fgeha.gov.pk</a>
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Contact</h2>
+        <p>
+          For questions about account deletion or privacy, contact
+          <a href="mailto:support@fgeha.gov.pk">support@fgeha.gov.pk</a>.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var form = document.getElementById("delete-form");
+        if (!form) return;
+
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+
+          var fullName = document.getElementById("fullName").value.trim();
+          var accountEmail = document.getElementById("accountEmail").value.trim();
+          var details = document.getElementById("details").value.trim();
+
+          var subject = encodeURIComponent("Account Deletion Request - FGEHA App");
+          var body = encodeURIComponent(
+            "Full name: " +
+              fullName +
+              "\nAccount email: " +
+              accountEmail +
+              "\n\nDetails:\n" +
+              (details || "N/A") +
+              "\n\nI request deletion of my FGEHA - Resident Service Portal account and associated personal data."
+          );
+
+          window.location.href = "mailto:support@fgeha.gov.pk?subject=" + subject + "&body=" + body;
+        });
+      })();
+    </script>
+  </body>
+</html>
