@@ -299,6 +299,7 @@ export default function CreateRequestFormScreen() {
     user?.subSector?.name?.trim() ||
     (subSectorId != null ? `Sector #${subSectorId}` : "Not set");
   const phoneLabel = [phoneCountryCode.trim(), phoneNumber.trim()].filter(Boolean).join(" ") || "Not set";
+  const addressSummary = `House: ${houseNo.trim() || "Not set"}   |   Street: ${streetNo.trim() || "Not set"}   |   Sub-sector: ${subSectorLabel}`;
 
   useEffect(() => {
     if (!resolvedServiceOptionImageUrl) setImagePreviewOpen(false);
@@ -405,10 +406,8 @@ export default function CreateRequestFormScreen() {
               </View>
               <View style={styles.readOnlyGrid}>
                 <ReadOnlyDetail label="Full name" value={name.trim() || "Not set"} icon="person-outline" fullWidth />
-                <ReadOnlyDetail label="House no" value={houseNo.trim() || "Not set"} icon="home-outline" />
-                <ReadOnlyDetail label="Street no" value={streetNo.trim() || "Not set"} icon="map-outline" />
                 <ReadOnlyDetail label="Phone" value={phoneLabel} icon="call-outline" fullWidth />
-                <ReadOnlyDetail label="Sub-sector" value={subSectorLabel} icon="business-outline" fullWidth />
+                <ReadOnlyDetail label="Address" value={addressSummary} icon="location-outline" fullWidth />
               </View>
             </View>
             <Text style={styles.detailsHint}>Profile details are locked here. Update profile to change them.</Text>
