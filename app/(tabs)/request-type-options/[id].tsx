@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,14 +16,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, unwrapList } from "../../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
 
-type OptionType = "form" | "list" | "rules" | "link";
+type OptionType = "form" | "list" | "rules" | "link" | "phone";
 interface Option {
   id: number;
   requestTypeId: number;
   label: string;
   optionType: OptionType;
   imageUrl?: string | null;
-  config: { listKey?: string; content?: string; url?: string } | null;
+  config: { listKey?: string; content?: string; url?: string; phoneNumber?: string } | null;
   displayOrder: number;
 }
 
@@ -31,6 +32,7 @@ function getOptionHint(opt: Option): string {
   if (opt.optionType === "list") return "Open list";
   if (opt.optionType === "rules") return "View rules";
   if (opt.optionType === "link") return "Open link";
+  if (opt.optionType === "phone") return "Tap to call";
   return opt.optionType;
 }
 
@@ -43,6 +45,11 @@ function getLinkHost(rawUrl?: string): string | null {
   } catch {
     return value;
   }
+}
+
+function getPhoneDisplay(raw?: string): string {
+  const value = (raw ?? "").trim();
+  return value || "Phone number";
 }
 
 const cardShadow = Platform.select({
@@ -137,6 +144,13 @@ export default function RequestTypeOptionsScreen() {
           url: opt.config.url,
         },
       });
+      return;
+    }
+    if (opt.optionType === "phone" && opt.config?.phoneNumber) {
+      const dial = opt.config.phoneNumber.trim();
+      if (!dial) return;
+      const telUrl = `tel:${dial.replace(/\s+/g, "")}`;
+      void Linking.openURL(telUrl);
     }
   };
 
@@ -181,7 +195,11 @@ export default function RequestTypeOptionsScreen() {
         {options.map((opt) => (
           <TouchableOpacity
             key={opt.id}
-            style={[styles.optionCard, cardShadow, opt.optionType === "link" && styles.optionCardLink]}
+            style={[
+              styles.optionCard,
+              cardShadow,
+              (opt.optionType === "link" || opt.optionType === "phone") && styles.optionCardLink,
+            ]}
             onPress={() => handleOptionPress(opt)}
             activeOpacity={0.78}
           >
@@ -189,14 +207,25 @@ export default function RequestTypeOptionsScreen() {
             <View style={styles.optionMetaRow}>
               {opt.optionType === "link" ? (
                 <Ionicons name="open-outline" size={15} color={colors.primary} />
+              ) : opt.optionType === "phone" ? (
+                <Ionicons name="call-outline" size={15} color={colors.primary} />
               ) : null}
-              <Text style={[styles.optionHint, opt.optionType === "link" && styles.optionHintLink]}>
+              <Text
+                style={[
+                  styles.optionHint,
+                  (opt.optionType === "link" || opt.optionType === "phone") && styles.optionHintLink,
+                ]}
+              >
                 {getOptionHint(opt)}
               </Text>
             </View>
             {opt.optionType === "link" ? (
               <Text style={styles.optionLinkHost} numberOfLines={1}>
                 {getLinkHost(opt.config?.url) ?? "External website"}
+              </Text>
+            ) : opt.optionType === "phone" ? (
+              <Text style={styles.optionLinkHost} numberOfLines={1}>
+                {getPhoneDisplay(opt.config?.phoneNumber)}
               </Text>
             ) : null}
           </TouchableOpacity>
