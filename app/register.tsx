@@ -141,7 +141,7 @@ export default function Register() {
         idCardFront,
         idCardBack,
       });
-      showSuccess("Registration complete. Wait for admin approval, then sign in.", () =>
+      showSuccess("Registration complete. You can now sign in.", () =>
         router.replace("/login")
       );
     } catch (e) {

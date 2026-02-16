@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  FlatList,
   Image,
   Linking,
 } from "react-native";
@@ -30,6 +29,30 @@ function FieldGroup({ title, children }: { title: string; children: React.ReactN
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldGroupTitle}>{title}</Text>
       {children}
+    </View>
+  );
+}
+
+function ReadOnlyDetail({
+  label,
+  value,
+  icon,
+  fullWidth = false,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  fullWidth?: boolean;
+}) {
+  return (
+    <View style={[styles.readOnlyDetail, fullWidth && styles.readOnlyDetailFull]}>
+      <View style={styles.readOnlyIconWrap}>
+        <Ionicons name={icon} size={16} color={colors.primary} />
+      </View>
+      <View style={styles.readOnlyTextWrap}>
+        <Text style={styles.readOnlyDetailLabel}>{label}</Text>
+        <Text style={styles.readOnlyDetailValue}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -54,8 +77,6 @@ export default function CreateRequestFormScreen() {
   const [houseNo, setHouseNo] = useState("");
   const [streetNo, setStreetNo] = useState("");
   const [subSectorId, setSubSectorId] = useState<number | null>(null);
-  const [subSectors, setSubSectors] = useState<{ id: number; name: string; code: string }[]>([]);
-  const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
   const [locationText, setLocationText] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
@@ -159,21 +180,6 @@ export default function CreateRequestFormScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await apiGet<{ id: number; name: string; code: string }[]>("/users/sub-sectors");
-        if (!cancelled && Array.isArray(list)) setSubSectors(list);
-      } catch {
-        if (!cancelled) setSubSectors([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (cancelled) return;
         if (status !== "granted") {
@@ -214,15 +220,15 @@ export default function CreateRequestFormScreen() {
     const h = houseNo.trim();
     const s = streetNo.trim();
     if (!h) {
-      showError("Please enter the house or unit number for this request.");
+      showError("Your house number is missing. Update your profile details before submitting.");
       return;
     }
     if (!s) {
-      showError("Please enter the street number for this request.");
+      showError("Your street number is missing. Update your profile details before submitting.");
       return;
     }
     if (subSectorId == null) {
-      showError("Please select a sub-sector from the list for this request.");
+      showError("Your sub-sector is missing. Update your profile details before submitting.");
       return;
     }
     const trimmed = description.trim();
@@ -289,6 +295,10 @@ export default function CreateRequestFormScreen() {
       ? serviceOptionImageUrl
       : `${API_URL.replace(/\/$/, "")}${serviceOptionImageUrl.startsWith("/") ? "" : "/"}${serviceOptionImageUrl}`
     : null;
+  const subSectorLabel =
+    user?.subSector?.name?.trim() ||
+    (subSectorId != null ? `Sector #${subSectorId}` : "Not set");
+  const phoneLabel = [phoneCountryCode.trim(), phoneNumber.trim()].filter(Boolean).join(" ") || "Not set";
 
   useEffect(() => {
     if (!resolvedServiceOptionImageUrl) setImagePreviewOpen(false);
@@ -387,104 +397,21 @@ export default function CreateRequestFormScreen() {
           </View>
         ) : null}
         <View style={styles.card}>
-          <FieldGroup title="Your details">
-            <Text style={styles.label}>Full name</Text>
-            <TextInput
-              style={[styles.input, styles.inputReadOnly]}
-              value={name}
-              placeholder="Enter your full name"
-              placeholderTextColor={colors.textMuted}
-              editable={false}
-            />
-            <Text style={styles.label}>Phone</Text>
-            <View style={styles.phoneRow}>
-              <TextInput
-                style={[styles.input, styles.phoneCode, styles.inputReadOnly]}
-                value={phoneCountryCode}
-                placeholder="+92"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-                editable={false}
-              />
-              <TextInput
-                style={[styles.input, styles.phoneNumber, styles.inputReadOnly]}
-                value={phoneNumber}
-                placeholder="Phone number"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-                editable={false}
-              />
+          <FieldGroup title="Profile details">
+            <View style={styles.readOnlyPanel}>
+              <View style={styles.readOnlyPanelHeader}>
+                <Ionicons name="lock-closed-outline" size={14} color={colors.primary} />
+                <Text style={styles.readOnlyPanelHeaderText}>Read-only profile data</Text>
+              </View>
+              <View style={styles.readOnlyGrid}>
+                <ReadOnlyDetail label="Full name" value={name.trim() || "Not set"} icon="person-outline" fullWidth />
+                <ReadOnlyDetail label="House no" value={houseNo.trim() || "Not set"} icon="home-outline" />
+                <ReadOnlyDetail label="Street no" value={streetNo.trim() || "Not set"} icon="map-outline" />
+                <ReadOnlyDetail label="Phone" value={phoneLabel} icon="call-outline" fullWidth />
+                <ReadOnlyDetail label="Sub-sector" value={subSectorLabel} icon="business-outline" fullWidth />
+              </View>
             </View>
-          </FieldGroup>
-
-          <FieldGroup title="Address">
-            <Text style={styles.label}>House no</Text>
-            <TextInput
-              style={styles.input}
-              value={houseNo}
-              onChangeText={setHouseNo}
-              placeholder="House / unit number"
-              placeholderTextColor={colors.textMuted}
-              editable={!submitting}
-            />
-            <Text style={styles.label}>Street no</Text>
-            <TextInput
-              style={styles.input}
-              value={streetNo}
-              onChangeText={setStreetNo}
-              placeholder="Street number"
-              placeholderTextColor={colors.textMuted}
-              editable={!submitting}
-            />
-            <Text style={styles.label}>Sub-sector</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => !submitting && setSectorPickerOpen(true)}
-              disabled={submitting}
-            >
-              <Text style={subSectorId != null ? styles.pickerText : styles.pickerPlaceholder}>
-                {subSectorId != null
-                  ? subSectors.find((x) => x.id === subSectorId)?.name ?? `Sector #${subSectorId}`
-                  : "Select sub-sector (for this request)"}
-              </Text>
-            </TouchableOpacity>
-            <Modal
-              visible={sectorPickerOpen}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setSectorPickerOpen(false)}
-            >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => setSectorPickerOpen(false)}
-              >
-                <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-                  <Text style={styles.modalTitle}>Select sub-sector</Text>
-                  <FlatList
-                    data={subSectors}
-                    keyExtractor={(item) => String(item.id)}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={styles.modalOption}
-                        onPress={() => {
-                          setSubSectorId(item.id);
-                          setSectorPickerOpen(false);
-                        }}
-                      >
-                        <Text style={styles.modalOptionText}>{item.name}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                  <TouchableOpacity
-                    style={styles.modalCancel}
-                    onPress={() => setSectorPickerOpen(false)}
-                  >
-                    <Text style={styles.modalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            </Modal>
+            <Text style={styles.detailsHint}>Profile details are locked here. Update profile to change them.</Text>
           </FieldGroup>
 
           <FieldGroup title="Location & notes">
@@ -796,8 +723,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
     color: colors.textPrimary,
   },
-  pickerText: { fontSize: typography.bodySize, color: colors.textSecondary },
-  pickerPlaceholder: { fontSize: typography.bodySize, color: colors.textMuted },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -821,10 +746,83 @@ const styles = StyleSheet.create({
   modalOptionText: { fontSize: typography.bodySize, color: colors.textSecondary },
   modalCancel: { paddingVertical: 14, paddingHorizontal: 16, marginTop: 8, alignItems: "center" },
   modalCancelText: { fontSize: typography.bodySize, fontWeight: "600", color: colors.primary },
-  inputReadOnly: { backgroundColor: colors.border + "20", color: colors.textSecondary },
-  phoneRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
-  phoneCode: { width: 90 },
-  phoneNumber: { flex: 1 },
+  readOnlyPanel: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(106, 176, 76, 0.25)",
+    backgroundColor: "rgba(106, 176, 76, 0.08)",
+    padding: 9,
+    marginBottom: 6,
+  },
+  readOnlyPanelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 7,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(106, 176, 76, 0.22)",
+  },
+  readOnlyPanelHeaderText: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+  },
+  readOnlyGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  readOnlyDetail: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 9,
+    marginBottom: 6,
+    backgroundColor: colors.cardBg,
+    width: "49%",
+  },
+  readOnlyDetailFull: {
+    width: "100%",
+  },
+  readOnlyIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(106, 176, 76, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+    marginTop: 1,
+  },
+  readOnlyTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  readOnlyDetailLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: 1,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.2,
+  },
+  readOnlyDetailValue: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    fontWeight: "500",
+  },
+  detailsHint: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
   description: { minHeight: 100, paddingTop: 14 },
   locationLoaderWrap: {
     flexDirection: "row",
