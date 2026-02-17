@@ -11,6 +11,7 @@ export interface User {
   fullName: string;
   role: string;
   approvalStatus: string;
+  accountStatus?: "active" | "deactivated";
   phoneCountryCode?: string;
   phoneNumber?: string;
   houseNo?: string;

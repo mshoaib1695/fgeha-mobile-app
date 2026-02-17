@@ -23,10 +23,12 @@ interface RequestItem {
   id: number;
   requestNumber?: string;
   requestTypeId: number;
+  requestTypeOptionId?: number | null;
   description: string;
   status: string;
   createdAt: string;
   requestType?: RequestType;
+  requestTypeOption?: { id: number; label: string } | null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -69,7 +71,10 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function RequestCard({ item }: { item: RequestItem }) {
-  const typeName = item.requestType?.name ?? `Type #${item.requestTypeId}`;
+  const typeName =
+    item.requestTypeOption?.label?.trim() ||
+    item.requestType?.name ||
+    `Type #${item.requestTypeId}`;
   const date = item.createdAt
     ? new Date(item.createdAt).toLocaleString(undefined, {
         year: "numeric",

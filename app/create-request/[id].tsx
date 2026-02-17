@@ -64,6 +64,7 @@ export default function CreateRequestFormScreen() {
   const { user, refreshUser, isLoading: authLoading } = useAuth();
   const { showSuccess, showError } = useAppAlert();
   const requestTypeId = id ? parseInt(id, 10) : null;
+  const selectedOptionId = optionId ? parseInt(optionId, 10) : null;
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
 
   const [requestTypeName, setRequestTypeName] = useState("");
@@ -217,6 +218,10 @@ export default function CreateRequestFormScreen() {
       showError("Invalid request type. Please go back and choose a request type again.");
       return;
     }
+    if (selectedOptionId == null || isNaN(selectedOptionId)) {
+      showError("Please choose a service option first.");
+      return;
+    }
     const h = houseNo.trim();
     const s = streetNo.trim();
     if (!h) {
@@ -243,10 +248,7 @@ export default function CreateRequestFormScreen() {
       formData.append("houseNo", h);
       formData.append("streetNo", s);
       formData.append("subSectorId", String(subSectorId));
-      const oid = optionId ? parseInt(optionId, 10) : null;
-      if (oid != null && !isNaN(oid)) {
-        formData.append("requestTypeOptionId", String(oid));
-      }
+      formData.append("requestTypeOptionId", String(selectedOptionId));
       if (trimmed) formData.append("description", trimmed);
       if (issueImage) {
         formData.append("issueImage", {

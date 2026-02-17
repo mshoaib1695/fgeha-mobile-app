@@ -80,10 +80,6 @@ export default function RequestTypeOptionsScreen() {
         const list = await apiGet<Option[]>(`/request-type-options/by-request-type/${requestTypeId}`);
         const opts = Array.isArray(list) ? list : [];
         setOptions(opts);
-        if (opts.length === 0) {
-          router.replace(`/create-request/${requestTypeId}`);
-          return;
-        }
         const raw = await apiGet<unknown>("/request-types");
         const types = unwrapList<{ id: number; name: string; underConstruction?: boolean; underConstructionMessage?: string | null }>(raw);
         const t = types.find((x) => x.id === requestTypeId) ?? null;
@@ -230,6 +226,14 @@ export default function RequestTypeOptionsScreen() {
             ) : null}
           </TouchableOpacity>
         ))}
+        {options.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No service options configured</Text>
+            <Text style={styles.emptyText}>
+              Ask admin to add at least one form option before creating requests.
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -324,5 +328,23 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySize,
     fontWeight: "600",
     color: colors.primary,
+  },
+  emptyWrap: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.cardBg,
+    padding: 16,
+  },
+  emptyTitle: {
+    fontSize: typography.bodySize,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: typography.smallSize,
+    color: colors.textSecondary,
   },
 });

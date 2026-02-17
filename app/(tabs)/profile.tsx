@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -36,10 +37,11 @@ const cardShadow = Platform.select({
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, refreshUser, token } = useAuth();
+  const { user, refreshUser, token, logout } = useAuth();
   const { showSuccess, showError, showInfo } = useAppAlert();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
   const [editingAccount, setEditingAccount] = useState(false);
   const [fullName, setFullName] = useState("");
   const [houseNo, setHouseNo] = useState("");
@@ -159,6 +161,52 @@ export default function ProfileScreen() {
       setSaving(false);
     }
   }, [token, saving, fullName, houseNo, streetNo, showError, showSuccess, refreshUser]);
+
+  const deactivateAccount = useCallback(() => {
+    if (!token || deactivating) return;
+    Alert.alert(
+      "Deactivate account?",
+      "Your account will be deactivated. You can contact admin if you need to reactivate it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Deactivate",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeactivating(true);
+              const url = `${API_URL.replace(/\/$/, "")}/users/me/deactivate`;
+              const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              };
+              const vToken = getVToken();
+              if (vToken) headers["X-V"] = vToken;
+              const res = await fetch(url, {
+                method: "PATCH",
+                headers,
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({ message: res.statusText }));
+                const msg = (err as { message?: string | string[] }).message;
+                throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+              }
+              await logout();
+              showSuccess("Your profile has been deactivated.", () => {
+                router.replace("/login");
+              });
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : "Failed to deactivate account.";
+              showError(msg, "Deactivate account");
+            } finally {
+              setDeactivating(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [token, deactivating, logout, showSuccess, showError, router]);
 
   if (!user) {
     return (
@@ -349,6 +397,22 @@ export default function ProfileScreen() {
             </View>
           </>
         )}
+      </View>
+      <View style={[styles.card, cardShadow]}>
+        <Text style={styles.sectionTitle}>Account status</Text>
+        <Text style={styles.hint}>
+          Deactivate your profile without deleting your account.
+        </Text>
+        <TouchableOpacity
+          style={[styles.deactivateBtn, deactivating && styles.deactivateBtnDisabled]}
+          onPress={deactivateAccount}
+          disabled={deactivating}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.deactivateBtnText}>
+            {deactivating ? "Deactivating…" : "Deactivate profile"}
+          </Text>
+        </TouchableOpacity>
       </View>
       </ScrollView>
     </View>
@@ -564,6 +628,22 @@ const styles = StyleSheet.create({
   changeBtnPressed: { opacity: 0.85 },
   changeBtnText: { color: "#fff", fontSize: typography.bodySize, fontWeight: "600" },
   hint: { fontSize: typography.smallSize, color: colors.textMuted, textAlign: "center" },
+  deactivateBtn: {
+    marginTop: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(200,0,0,0.25)",
+    backgroundColor: "rgba(200,0,0,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deactivateBtnDisabled: { opacity: 0.7 },
+  deactivateBtnText: {
+    color: colors.error,
+    fontSize: typography.bodySize,
+    fontWeight: "700",
+  },
   label: {
     fontSize: typography.smallSize,
     fontWeight: "600",
