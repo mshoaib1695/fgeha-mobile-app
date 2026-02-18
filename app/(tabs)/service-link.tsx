@@ -19,6 +19,7 @@ export default function ServiceLinkScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const resolvedUrl = useMemo(() => normalizeUrl(url), [url]);
   const screenTitle = (title ?? "").trim() || "Link";
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
@@ -49,16 +50,40 @@ export default function ServiceLinkScreen() {
     <View style={styles.container}>
       <WebView
         source={{ uri: resolvedUrl }}
+        javaScriptEnabled
+        domStorageEnabled
+        mixedContentMode="always"
+        setSupportMultipleWindows={false}
+        onShouldStartLoadWithRequest={(request) => {
+          const nextUrl = (request.url ?? "").trim();
+          if (!/^https?:\/\//i.test(nextUrl)) {
+            Linking.openURL(nextUrl).catch(() => null);
+            return false;
+          }
+          return true;
+        }}
         onLoadStart={() => {
           setLoading(true);
           setHasError(false);
+          setErrorMessage("");
         }}
         onLoadEnd={() => setLoading(false)}
+        onHttpError={(event) => {
+          setLoading(false);
+          setHasError(true);
+          const code = event.nativeEvent.statusCode;
+          setErrorMessage(`HTTP ${code} while loading page`);
+        }}
         onError={() => {
           setLoading(false);
           setHasError(true);
+          setErrorMessage("This website does not allow opening inside in-app browser.");
         }}
       />
+      <TouchableOpacity style={styles.browserBtn} onPress={handleOpenInBrowser} activeOpacity={0.85}>
+        <Ionicons name="open-outline" size={16} color={colors.textOnGradient} />
+        <Text style={styles.browserBtnText}>Open in browser</Text>
+      </TouchableOpacity>
       {loading ? (
         <View style={styles.loadingOverlay} pointerEvents="none">
           <ActivityIndicator size="small" color={colors.primary} />
@@ -69,7 +94,9 @@ export default function ServiceLinkScreen() {
         <View style={[styles.errorOverlay, { paddingBottom }]}>
           <Ionicons name="warning-outline" size={24} color={colors.error} />
           <Text style={styles.errorTitle}>Could not load link</Text>
-          <Text style={styles.errorBody}>You can still open it in your browser.</Text>
+          <Text style={styles.errorBody}>
+            {errorMessage || "You can still open it in your browser."}
+          </Text>
           <TouchableOpacity style={styles.openBtn} onPress={handleOpenInBrowser} activeOpacity={0.85}>
             <Ionicons name="open-outline" size={18} color="#fff" />
             <Text style={styles.openBtnText}>Open in browser</Text>
@@ -90,7 +117,7 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     position: "absolute",
-    top: 12,
+    top: 56,
     right: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -99,6 +126,23 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
+  },
+  browserBtn: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  browserBtnText: {
+    color: colors.textOnGradient,
+    fontSize: typography.smallSize,
+    fontWeight: "700",
   },
   loadingText: {
     fontSize: typography.smallSize,
