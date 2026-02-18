@@ -30,10 +30,11 @@ type Option = {
 };
 
 export default function ServiceRulesScreen() {
-  const { optionId, optionImageUrl, requestTypeId } = useLocalSearchParams<{
+  const { optionId, optionImageUrl, requestTypeId, optionType } = useLocalSearchParams<{
     optionId?: string;
     optionImageUrl?: string;
     requestTypeId?: string;
+    optionType?: string;
   }>();
   const router = useRouter();
   const navigation = useNavigation();
@@ -82,6 +83,7 @@ export default function ServiceRulesScreen() {
     }
     router.back();
   };
+  const requestedOptionType = (optionType ?? "").trim().toLowerCase();
   useEffect(() => {
     navigation.setOptions({
       gestureEnabled: false,
@@ -140,16 +142,17 @@ export default function ServiceRulesScreen() {
   }
 
   if (!option) {
+    const emptyIsNotification = requestedOptionType === "notification";
     return (
       <View style={styles.container}>
         <LinearGradient colors={[...gradientColors]} style={styles.header}>
-          <Text style={styles.headerEmoji}>📋</Text>
-          <Text style={styles.headerTitle}>Rules</Text>
+          <Text style={styles.headerEmoji}>{emptyIsNotification ? "🔔" : "📋"}</Text>
+          <Text style={styles.headerTitle}>{emptyIsNotification ? "Notification" : "Rules"}</Text>
           <Text style={styles.headerSubtitle}>No content available</Text>
         </LinearGradient>
         <View style={[styles.centered, styles.emptyWrap, { paddingBottom }]}>
           <View style={[styles.card, cardShadow]}>
-            <Text style={styles.emptyText}>Rules not found.</Text>
+            <Text style={styles.emptyText}>{emptyIsNotification ? "Notification not found." : "Rules not found."}</Text>
           </View>
           <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
@@ -165,6 +168,8 @@ export default function ServiceRulesScreen() {
   const hasRules = rulesList.length > 0 && rulesList.some((r) => (r.description ?? "").trim());
   const fallbackContent = (config.content ?? "").trim();
   const filteredRules = hasRules ? rulesList.filter((r) => (r.description ?? "").trim()) : [];
+  const isNotification = option.optionType === "notification" || requestedOptionType === "notification";
+  const hasRuleCards = !isNotification && filteredRules.length > 0;
   const handleOpenOrDownloadServiceImage = async () => {
     if (!resolvedOptionImageUrl) return;
     try {
@@ -177,9 +182,9 @@ export default function ServiceRulesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={[...gradientColors]} style={styles.header}>
-        <Text style={styles.headerEmoji}>📋</Text>
+        <Text style={styles.headerEmoji}>{isNotification ? "🔔" : "📋"}</Text>
         <Text style={styles.headerTitle}>{option.label}</Text>
-        <Text style={styles.headerSubtitle}>Rules & guidelines</Text>
+        <Text style={styles.headerSubtitle}>{isNotification ? "Notification" : "Rules & guidelines"}</Text>
       </LinearGradient>
       <ScrollView
         style={styles.scroll}
@@ -227,7 +232,7 @@ export default function ServiceRulesScreen() {
             )}
           </View>
         ) : null}
-        {filteredRules.length > 0 ? (
+        {hasRuleCards ? (
           filteredRules.map((rule, index) => (
             <View key={index} style={[styles.card, cardShadow, styles.cardSpaced]}>
               <View style={styles.ruleNumberWrap}>
@@ -238,7 +243,7 @@ export default function ServiceRulesScreen() {
           ))
         ) : (
           <View style={[styles.card, cardShadow]}>
-            <Text style={styles.body}>{fallbackContent || "No rules content set."}</Text>
+            <Text style={styles.body}>{fallbackContent || (isNotification ? "No notification content set." : "No rules content set.")}</Text>
           </View>
         )}
         <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>

@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, unwrapList } from "../../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
 
-type OptionType = "form" | "list" | "rules" | "link" | "phone";
+type OptionType = "form" | "list" | "rules" | "notification" | "link" | "phone";
 interface Option {
   id: number;
   requestTypeId: number;
@@ -31,6 +31,7 @@ function getOptionHint(opt: Option): string {
   if (opt.optionType === "form") return "Submit a request";
   if (opt.optionType === "list") return "Open list";
   if (opt.optionType === "rules") return "View rules";
+  if (opt.optionType === "notification") return "View notification";
   if (opt.optionType === "link") return "Open link";
   if (opt.optionType === "phone") return "Tap to call";
   return opt.optionType;
@@ -120,13 +121,14 @@ export default function RequestTypeOptionsScreen() {
       });
       return;
     }
-    if (opt.optionType === "rules") {
+    if (opt.optionType === "rules" || opt.optionType === "notification") {
       router.push({
         pathname: "/(tabs)/service-rules",
         params: {
           optionId: String(opt.id),
           requestTypeId: String(requestTypeId),
           optionImageUrl: opt.imageUrl ?? "",
+          optionType: opt.optionType,
         },
       });
       return;
@@ -205,6 +207,8 @@ export default function RequestTypeOptionsScreen() {
                 <Ionicons name="open-outline" size={15} color={colors.primary} />
               ) : opt.optionType === "phone" ? (
                 <Ionicons name="call-outline" size={15} color={colors.primary} />
+              ) : opt.optionType === "notification" ? (
+                <Ionicons name="notifications-outline" size={15} color={colors.primary} />
               ) : null}
               <Text
                 style={[
