@@ -8,46 +8,92 @@ import {
   Text,
   Platform,
   TouchableOpacity,
+  Linking,
+  Modal,
+  Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useAuth } from "../lib/auth-context";
-import { checkV, clearVCache, type VState } from "../lib/v";
+import { checkV, clearVCache } from "../lib/v";
+import { checkAppVersion, setUpdateDismissed } from "../lib/app-version";
 import { colors, gradientColors } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
 
 const MIN_DISPLAY_MS = 1500;
-const V_CHECK_TIMEOUT_MS = 12000;
+const GATE_CHECK_TIMEOUT_MS = 12000;
+
+type GateStatus =
+  | "checking"
+  | "fail"
+  | "ok"
+  | "update-required"
+  | "update-available";
 
 export default function Index() {
   const { token, user, isLoading } = useAuth();
   const router = useRouter();
   const mountedAt = useRef<number>(Date.now());
   const [canNavigate, setCanNavigate] = useState(false);
-  const [vState, setVState] = useState<VState>({ status: "checking" });
+  const [gateStatus, setGateStatus] = useState<GateStatus>("checking");
+  const [failMessage, setFailMessage] = useState<string>("");
+  const [updatePayload, setUpdatePayload] = useState<{
+    storeUrl: string;
+    latestVersion?: string;
+  } | null>(null);
 
-  const runVCheck = useCallback(async () => {
-    setVState({ status: "checking" });
-    const result = await checkV();
-    setVState(result);
+  const runGateCheck = useCallback(async () => {
+    setGateStatus("checking");
+    setFailMessage("");
+    setUpdatePayload(null);
+    const [vResult, appVersionResult] = await Promise.all([
+      checkV(),
+      checkAppVersion(),
+    ]);
+
+    if (vResult.status !== "ok") {
+      setGateStatus("fail");
+      setFailMessage(vResult.message ?? "Please try again later.");
+      return;
+    }
+    if (appVersionResult.status === "fail") {
+      setGateStatus("fail");
+      setFailMessage(appVersionResult.message ?? "Please try again later.");
+      return;
+    }
+    if (appVersionResult.status === "update-required" && appVersionResult.storeUrl) {
+      setGateStatus("update-required");
+      setUpdatePayload({ storeUrl: appVersionResult.storeUrl });
+      return;
+    }
+    if (appVersionResult.status === "update-available" && appVersionResult.storeUrl) {
+      setGateStatus("update-available");
+      setUpdatePayload({
+        storeUrl: appVersionResult.storeUrl,
+        latestVersion: appVersionResult.latestVersion,
+      });
+      return;
+    }
+    setGateStatus("ok");
   }, []);
 
   useEffect(() => {
-    runVCheck();
-  }, [runVCheck]);
+    runGateCheck();
+  }, [runGateCheck]);
 
-  // If license check hangs (e.g. network never resolves), show error after timeout
+  // If license/update check hangs (e.g. network never resolves), show error after timeout
   useEffect(() => {
-    if (vState.status !== "checking") return;
+    if (gateStatus !== "checking") return;
     const t = setTimeout(() => {
-      setVState({ status: "fail", message: "Connection timed out or unavailable." });
-    }, V_CHECK_TIMEOUT_MS);
+      setGateStatus("fail");
+      setFailMessage("Connection timed out or unavailable.");
+    }, GATE_CHECK_TIMEOUT_MS);
     return () => clearTimeout(t);
-  }, [vState.status]);
+  }, [gateStatus]);
 
   useEffect(() => {
-    if (vState.status !== "ok" || !canNavigate) return;
+    if (gateStatus !== "ok" || !canNavigate) return;
     if (!isLoading) {
       const elapsed = Date.now() - mountedAt.current;
       const delay = Math.max(0, MIN_DISPLAY_MS - elapsed);
@@ -67,7 +113,7 @@ export default function Index() {
       }, delay);
       return () => clearTimeout(t);
     }
-  }, [vState.status, isLoading, canNavigate, token, user, router]);
+  }, [gateStatus, isLoading, canNavigate, token, user, router]);
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -78,11 +124,52 @@ export default function Index() {
 
   const handleRetry = useCallback(() => {
     clearVCache();
-    runVCheck();
-  }, [runVCheck]);
+    runGateCheck();
+  }, [runGateCheck]);
 
-  const vOk = vState.status === "ok";
-  const vFail = vState.status === "fail";
+  const openStore = useCallback(() => {
+    const url = updatePayload?.storeUrl ?? "https://play.google.com/store/apps/details?id=com.fgeha.app";
+    Linking.openURL(url).catch(() => {});
+  }, [updatePayload?.storeUrl]);
+
+  const dismissSoftUpdate = useCallback(async () => {
+    if (updatePayload?.latestVersion) {
+      await setUpdateDismissed(updatePayload.latestVersion);
+    }
+    setGateStatus("ok");
+  }, [updatePayload?.latestVersion]);
+
+  const showFail = gateStatus === "fail";
+  const showUpdateRequired = gateStatus === "update-required";
+  const showUpdateAvailableModal = gateStatus === "update-available";
+
+  // Update required: full screen same as license verify layout but with "Update required" content
+  if (showUpdateRequired) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={[...gradientColors]} style={styles.header}>
+          <View style={[styles.logoWrap, styles.logoWrapShadow]}>
+            <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+          </View>
+          <Text style={styles.appName}>FGEHA - RSP</Text>
+          <Text style={styles.tagline}>Resident's Service Portal</Text>
+        </LinearGradient>
+        <View style={styles.content}>
+          <View style={[styles.card, cardShadow]}>
+            <Text style={styles.errorTitle}>Update required</Text>
+            <Text style={styles.message}>
+              A new version is available. Please update the app to continue.
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={openStore} activeOpacity={0.8}>
+              <Text style={styles.retryText}>
+                {Platform.OS === "ios" ? "Open App Store" : "Open Play Store"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -99,11 +186,11 @@ export default function Index() {
       </LinearGradient>
       <View style={styles.content}>
         <View style={[styles.card, cardShadow]}>
-          {vFail ? (
+          {showFail ? (
             <>
               <Text style={styles.errorTitle}>Unable to continue</Text>
               <Text style={styles.message}>
-                {vState.message ?? "Please try again later."}
+                {failMessage || "Please try again later."}
               </Text>
               <TouchableOpacity style={styles.retryButton} onPress={handleRetry} activeOpacity={0.8}>
                 <Text style={styles.retryText}>Retry</Text>
@@ -117,6 +204,39 @@ export default function Index() {
           )}
         </View>
       </View>
+      {showUpdateAvailableModal && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={dismissSoftUpdate}
+        >
+          <Pressable style={styles.modalOverlay} onPress={dismissSoftUpdate}>
+            <Pressable style={styles.softModalCard} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.softTitle}>Update available</Text>
+              <Text style={styles.softMessage}>
+                Version {updatePayload?.latestVersion ?? ""} is available. Update for the latest features and improvements.
+              </Text>
+              <View style={styles.softButtons}>
+                <TouchableOpacity
+                  style={styles.softButtonLater}
+                  onPress={dismissSoftUpdate}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.softButtonLaterText}>Later</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.softButtonUpdate}
+                  onPress={openStore}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.softButtonUpdateText}>Update</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -231,5 +351,60 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  softModalCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 340,
+  },
+  softTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  softMessage: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  softButtons: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center",
+  },
+  softButtonLater: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: colors.border,
+  },
+  softButtonLaterText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  softButtonUpdate: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+  },
+  softButtonUpdateText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

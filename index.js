@@ -8,7 +8,6 @@ import { renderRootComponent } from "expo-router/build/renderRootComponent";
 import { AuthProvider } from "./lib/auth-context";
 import { AlertProvider } from "./lib/alert-context";
 import { RootErrorBoundary } from "./lib/error-boundary";
-import { ForceUpdateGate } from "./lib/force-update";
 
 function Root() {
   return (
@@ -16,9 +15,7 @@ function Root() {
       <RootErrorBoundary>
         <AuthProvider>
           <AlertProvider>
-            <ForceUpdateGate>
-              <App />
-            </ForceUpdateGate>
+            <App />
           </AlertProvider>
         </AuthProvider>
       </RootErrorBoundary>
