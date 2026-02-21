@@ -111,9 +111,23 @@ export default function ProfileScreen() {
         body: JSON.stringify({ profileImage: dataUrl }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        const msg = (err as { message?: string | string[] }).message;
-        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+        const rawText = await res.text();
+        let err: { message?: string | string[] };
+        try {
+          err = JSON.parse(rawText);
+        } catch {
+          err = { message: rawText || res.statusText };
+        }
+        const serverMsg = (err as { message?: string | string[] }).message;
+        const serverMsgStr = Array.isArray(serverMsg) ? serverMsg.join(". ") : serverMsg ?? "";
+        const isTooLarge =
+          res.status === 413 ||
+          /entity too large|payload too large|request entity too large|body too large/i.test(serverMsgStr) ||
+          /entity too large|payload too large|request entity too large|body too large/i.test(rawText);
+        const msg = isTooLarge
+          ? "Image is too large. Please choose a smaller photo."
+          : serverMsgStr || "Request failed";
+        throw new Error(msg);
       }
       await refreshUser();
       showSuccess("Profile photo updated.");
