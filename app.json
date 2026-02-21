@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.fgeha.app"
     },
     "android": {
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#FFFFFF"
@@ -55,7 +55,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2ecc8f19-ca6b-4a7d-9d95-bb49fac73e1f"
+        "projectId": "b97876b9-6365-49af-99b6-ec0c012f9c78"
       }
     }
   }
