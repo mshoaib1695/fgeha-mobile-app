@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth-context";
 import { useAppAlert } from "../../lib/alert-context";
 import { apiGet, apiPostForm, API_URL, unwrapList } from "../../lib/api";
+import { HeaderIcon } from "../../lib/header-icon";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -69,6 +70,7 @@ export default function CreateRequestFormScreen() {
 
   const [requestTypeName, setRequestTypeName] = useState("");
   const [serviceOptionLabel, setServiceOptionLabel] = useState<string | null>(null);
+  const [serviceOptionHeaderIcon, setServiceOptionHeaderIcon] = useState<string | null>(null);
   const [serviceOptionImageUrl, setServiceOptionImageUrl] = useState<string | null>(null);
   const [issueImageRequirement, setIssueImageRequirement] = useState<"none" | "optional" | "required">("optional");
   const [issueImage, setIssueImage] = useState<{ uri: string; name: string; type: string } | null>(null);
@@ -139,8 +141,9 @@ export default function CreateRequestFormScreen() {
     let cancelled = false;
     (async () => {
       const oid = optionId ? parseInt(optionId, 10) : null;
-      if (!oid || isNaN(oid)) {
+        if (!oid || isNaN(oid)) {
         if (!cancelled) setServiceOptionLabel(null);
+        if (!cancelled) setServiceOptionHeaderIcon(null);
         if (!cancelled) setServiceOptionImageUrl(null);
         if (!cancelled) setIssueImageRequirement("optional");
         if (!cancelled) setImagePreviewOpen(false);
@@ -150,11 +153,13 @@ export default function CreateRequestFormScreen() {
         const opt = await apiGet<{
           id: number;
           label: string;
+          headerIcon?: string | null;
           imageUrl?: string | null;
           config?: { issueImage?: "none" | "optional" | "required" } | null;
         }>(`/request-type-options/${oid}`);
         if (!cancelled) {
           if (opt?.label) setServiceOptionLabel(opt.label);
+          setServiceOptionHeaderIcon(opt?.headerIcon?.trim() ?? null);
           setServiceOptionImageUrl(opt?.imageUrl?.trim() ? opt.imageUrl ?? null : null);
           const req = opt?.config?.issueImage;
           if (req === "none" || req === "optional" || req === "required") {
@@ -167,6 +172,7 @@ export default function CreateRequestFormScreen() {
       } catch {
         if (!cancelled) {
           setServiceOptionLabel(null);
+          setServiceOptionHeaderIcon(null);
           setServiceOptionImageUrl(null);
           setIssueImageRequirement("optional");
         }
@@ -345,7 +351,7 @@ export default function CreateRequestFormScreen() {
         colors={[...gradientColors]}
         style={[styles.header, { paddingTop: insets.top + 20 }]}
       >
-        <Text style={styles.headerIcon}>📝</Text>
+        <HeaderIcon value={serviceOptionHeaderIcon} defaultIcon="📝" style={styles.headerIcon} />
         <View style={styles.headerTextWrap}>
           <Text style={styles.headerTitle} numberOfLines={2}>
             {(serviceOptionLabel ?? requestTypeName) || "New request"}

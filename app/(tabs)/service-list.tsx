@@ -19,6 +19,7 @@ import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet } from "../../lib/api";
 import { API_URL } from "../../lib/api";
+import { HeaderIcon } from "../../lib/header-icon";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -68,6 +69,7 @@ export default function ServiceListScreen() {
   const insets = useSafeAreaInsets();
   const key = listKey ?? "daily_bulletin";
   const [optionImageUrl, setOptionImageUrl] = useState<string | null>(null);
+  const [optionHeaderIcon, setOptionHeaderIcon] = useState<string | null>(null);
   const [bulletin, setBulletin] = useState<Bulletin | null>(null);
   const [byDateBulletin, setByDateBulletin] = useState<Bulletin | null>(null);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
@@ -132,10 +134,12 @@ export default function ServiceListScreen() {
     }
     (async () => {
       try {
-        const option = await apiGet<{ imageUrl?: string | null }>(`/request-type-options/${oid}`);
+        const option = await apiGet<{ imageUrl?: string | null; headerIcon?: string | null }>(`/request-type-options/${oid}`);
         setOptionImageUrl(option?.imageUrl?.trim() ? option.imageUrl : null);
+        setOptionHeaderIcon(option?.headerIcon?.trim() ?? null);
       } catch {
         setOptionImageUrl(null);
+        setOptionHeaderIcon(null);
       }
     })();
   }, [optionId]);
@@ -281,10 +285,17 @@ export default function ServiceListScreen() {
   if (key === "requests") {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={[...gradientColors]} style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.headerEmoji}>📋</Text>
-          <Text style={styles.headerTitle}>List of requests</Text>
-          <Text style={styles.headerSubtitle}>View and track in My Requests</Text>
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={[styles.header, { paddingTop: insets.top + 20 }]}
+        >
+          <HeaderIcon value={null} defaultIcon="📋" style={styles.headerIcon} />
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle} numberOfLines={2}>
+              List of requests
+            </Text>
+            <Text style={styles.headerSubtitle}>View and track in My Requests</Text>
+          </View>
         </LinearGradient>
         <View style={[styles.content, { paddingBottom }]}>
           {optionImageBlock}
@@ -318,10 +329,17 @@ export default function ServiceListScreen() {
   if (key !== "daily_bulletin") {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={[...gradientColors]} style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.headerEmoji}>📋</Text>
-          <Text style={styles.headerTitle}>List</Text>
-          <Text style={styles.headerSubtitle}>No content configured</Text>
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={[styles.header, { paddingTop: insets.top + 20 }]}
+        >
+          <HeaderIcon value={null} defaultIcon="📋" style={styles.headerIcon} />
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle} numberOfLines={2}>
+              List
+            </Text>
+            <Text style={styles.headerSubtitle}>No content configured</Text>
+          </View>
         </LinearGradient>
         <View style={[styles.content, { paddingBottom }]}>
           {optionImageBlock}
@@ -351,10 +369,17 @@ export default function ServiceListScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={[...gradientColors]} style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={styles.headerEmoji}>💧</Text>
-        <Text style={styles.headerTitle}>Water tanker list</Text>
-        <Text style={styles.headerSubtitle}>Today's schedule & filter by date</Text>
+      <LinearGradient
+        colors={[...gradientColors]}
+        style={[styles.header, { paddingTop: insets.top + 20 }]}
+      >
+        <HeaderIcon value={optionHeaderIcon} defaultIcon="💧" style={styles.headerIcon} />
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            Water tanker list
+          </Text>
+          <Text style={styles.headerSubtitle}>Today's schedule & filter by date</Text>
+        </View>
       </LinearGradient>
       <ScrollView
         style={styles.scroll}
@@ -512,33 +537,38 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 12, fontSize: typography.smallSize, color: "rgba(255,255,255,0.9)" },
   header: {
-    paddingBottom: 28,
-    paddingHorizontal: 24,
+    flexDirection: "row",
     alignItems: "center",
+    paddingBottom: 24,
+    paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-      },
-      android: { elevation: 6 },
-    }),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  headerEmoji: { fontSize: 40, marginBottom: 10 },
+  headerIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 4,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
     color: colors.textOnGradient,
     letterSpacing: 0.3,
-    textAlign: "center",
   },
   headerSubtitle: {
     fontSize: typography.subtitleSize,
+    lineHeight: typography.subtitleLineHeight,
     color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
+    marginTop: 6,
   },
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
   scroll: { flex: 1 },

@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, API_URL } from "../../lib/api";
+import { HeaderIcon } from "../../lib/header-icon";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 
 type RuleItem = { description?: string };
@@ -25,6 +26,7 @@ type Option = {
   requestTypeId?: number;
   label: string;
   optionType: string;
+  headerIcon?: string | null;
   imageUrl?: string | null;
   config: { content?: string; rules?: RuleItem[] } | null;
 };
@@ -145,10 +147,21 @@ export default function ServiceRulesScreen() {
     const emptyIsNotification = requestedOptionType === "notification";
     return (
       <View style={styles.container}>
-        <LinearGradient colors={[...gradientColors]} style={styles.header}>
-          <Text style={styles.headerEmoji}>{emptyIsNotification ? "🔔" : "📋"}</Text>
-          <Text style={styles.headerTitle}>{emptyIsNotification ? "Notification" : "Rules"}</Text>
-          <Text style={styles.headerSubtitle}>No content available</Text>
+        <LinearGradient
+          colors={[...gradientColors]}
+          style={[styles.header, { paddingTop: insets.top + 20 }]}
+        >
+          <HeaderIcon
+            value={null}
+            defaultIcon={emptyIsNotification ? "🔔" : "📋"}
+            style={styles.headerIcon}
+          />
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle} numberOfLines={2}>
+              {emptyIsNotification ? "Notification" : "Rules"}
+            </Text>
+            <Text style={styles.headerSubtitle}>No content available</Text>
+          </View>
         </LinearGradient>
         <View style={[styles.centered, styles.emptyWrap, { paddingBottom }]}>
           <View style={[styles.card, cardShadow]}>
@@ -181,10 +194,21 @@ export default function ServiceRulesScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={[...gradientColors]} style={styles.header}>
-        <Text style={styles.headerEmoji}>{isNotification ? "🔔" : "📋"}</Text>
-        <Text style={styles.headerTitle}>{option.label}</Text>
-        <Text style={styles.headerSubtitle}>{isNotification ? "Notification" : "Rules & guidelines"}</Text>
+      <LinearGradient
+        colors={[...gradientColors]}
+        style={[styles.header, { paddingTop: insets.top + 20 }]}
+      >
+        <HeaderIcon
+          value={option.headerIcon}
+          defaultIcon={isNotification ? "🔔" : "📋"}
+          style={styles.headerIcon}
+        />
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            {option.label}
+          </Text>
+          <Text style={styles.headerSubtitle}>{isNotification ? "Notification" : "Rules & guidelines"}</Text>
+        </View>
       </LinearGradient>
       <ScrollView
         style={styles.scroll}
@@ -300,34 +324,38 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, paddingHorizontal: 24 },
   emptyText: { fontSize: 16, color: colors.textSecondary, textAlign: "center" },
   header: {
-    paddingTop: 28,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
+    flexDirection: "row",
     alignItems: "center",
+    paddingBottom: 24,
+    paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-      },
-      android: { elevation: 6 },
-    }),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  headerEmoji: { fontSize: 40, marginBottom: 10 },
+  headerIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  headerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 4,
+  },
   headerTitle: {
     fontSize: 22,
     fontWeight: "700",
     color: colors.textOnGradient,
     letterSpacing: 0.3,
-    textAlign: "center",
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: typography.subtitleSize,
+    lineHeight: typography.subtitleLineHeight,
     color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
+    marginTop: 6,
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 24 },

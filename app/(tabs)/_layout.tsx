@@ -633,11 +633,11 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="service-list"
-        options={{ title: "List", headerShown: true, href: null }}
+        options={{ title: "List", headerShown: false, href: null }}
       />
       <Tabs.Screen
         name="service-rules"
-        options={{ title: "Rules", headerShown: true, href: null }}
+        options={{ title: "Rules", headerShown: false, href: null }}
       />
       <Tabs.Screen
         name="service-link"
