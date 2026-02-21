@@ -53,7 +53,7 @@ export default function ProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [retypePasswordError, setRetypePasswordError] = useState<string | null>(null);
-  const [newPasswordCriteriaError, setNewPasswordCriteriaError] = useState<string | null>(null);
+  const [newPwdCriteriaError, setNewPwdCriteriaError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -235,7 +235,7 @@ export default function ProfileScreen() {
     setNewPassword("");
     setConfirmPassword("");
     setRetypePasswordError(null);
-    setNewPasswordCriteriaError(null);
+    setNewPwdCriteriaError(null);
     setChangePasswordVisible(true);
   }, []);
 
@@ -258,6 +258,7 @@ export default function ProfileScreen() {
     }
     if (newP !== conf) {
       setRetypePasswordError("Passwords do not match.");
+      setNewPwdCriteriaError(null);
       showError("New password and re-type password do not match.");
       return;
     }
@@ -540,35 +541,35 @@ export default function ProfileScreen() {
             <Text style={styles.label}>New password</Text>
             <Text style={styles.modalHint}>At least 8 characters, with both letters and numbers.</Text>
             <TextInput
-              style={[styles.input, newPasswordCriteriaError && styles.inputError]}
+              style={[styles.input, newPwdCriteriaError ? styles.inputError : null]}
               value={newPassword}
               onChangeText={(text) => {
                 setNewPassword(text);
                 if (retypePasswordError) setRetypePasswordError(null);
-                if (newPasswordCriteriaError) setNewPasswordCriteriaError(null);
+                if (newPwdCriteriaError) setNewPwdCriteriaError(null);
               }}
               onBlur={() => {
                 if (newPassword.length === 0) {
-                  setNewPasswordCriteriaError(null);
+                  setNewPwdCriteriaError(null);
                   return;
                 }
                 if (newPassword.length < 8) {
-                  setNewPasswordCriteriaError("Password must be at least 8 characters.");
+                  setNewPwdCriteriaError("Password must be at least 8 characters.");
                   return;
                 }
                 if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
-                  setNewPasswordCriteriaError("Password must include both letters and numbers.");
+                  setNewPwdCriteriaError("Password must include both letters and numbers.");
                   return;
                 }
-                setNewPasswordCriteriaError(null);
+                setNewPwdCriteriaError(null);
               }}
               placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
               secureTextEntry
               editable={!changingPassword}
             />
-            {newPasswordCriteriaError ? (
-              <Text style={styles.inlineError}>{newPasswordCriteriaError}</Text>
+            {newPwdCriteriaError ? (
+              <Text style={styles.inlineError}>{newPwdCriteriaError}</Text>
             ) : null}
             <Text style={styles.label}>Re-type new password</Text>
             <TextInput

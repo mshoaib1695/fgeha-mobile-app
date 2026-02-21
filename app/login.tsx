@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, Link } from "expo-router";
@@ -48,7 +49,19 @@ export default function Login() {
       await login(email.trim(), password);
       router.replace("/(tabs)");
     } catch (e) {
-      showError(e instanceof Error ? e.message : "Please check your details and try again.", "Sign in failed");
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.toLowerCase().includes("verify your email")) {
+        Alert.alert(
+          "Email not verified",
+          "Your email isn't verified yet. Go to the verification screen to enter your code or request a new one.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Go to verification", onPress: () => router.replace({ pathname: "/verify-email", params: { email: email.trim() } }) },
+          ]
+        );
+        return;
+      }
+      showError(msg || "Please check your details and try again.", "Sign in failed");
     } finally {
       setLoading(false);
     }

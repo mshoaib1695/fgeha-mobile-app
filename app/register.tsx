@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   FlatList,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, Link } from "expo-router";
@@ -153,12 +154,31 @@ export default function Register() {
         idCardFront,
         idCardBack,
       });
-      showSuccess("Registration complete. You can now sign in.", () =>
-        router.replace("/login")
+      showSuccess(
+        "Registration complete. We sent a 6-digit code to your email. Enter it on the next screen to verify.",
+        () => router.replace({ pathname: "/verify-email", params: { email: email.trim() } })
       );
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Please try again.";
-      showError(msg, "Registration failed");
+      const msg = e instanceof Error ? e.message : "";
+      if (msg === "EMAIL_UNVERIFIED_RESENT") {
+        showSuccess(
+          "This email is already registered but not verified. We sent a new verification code to your email.",
+          () => router.replace({ pathname: "/verify-email", params: { email: email.trim() } })
+        );
+        return;
+      }
+      if (msg.toLowerCase().includes("already registered")) {
+        Alert.alert(
+          "Email already registered",
+          "You can sign in with this email, or go to the verification screen to get a new code if you haven't verified yet.",
+          [
+            { text: "Sign in", onPress: () => router.replace("/login") },
+            { text: "Get verification code", onPress: () => router.replace({ pathname: "/verify-email", params: { email: email.trim() } }) },
+          ]
+        );
+        return;
+      }
+      showError(msg || "Please try again.", "Registration failed");
     } finally {
       setLoading(false);
     }
