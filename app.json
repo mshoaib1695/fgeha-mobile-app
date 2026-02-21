@@ -2,7 +2,7 @@
   "expo": {
     "name": "FGEHA-RSP",
     "slug": "fgeha-app",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "scheme": "fgeha",
@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.fgeha.app"
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#FFFFFF"
