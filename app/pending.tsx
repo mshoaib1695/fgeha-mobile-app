@@ -27,8 +27,8 @@ export default function Pending() {
         {user && <Text style={styles.email}>{user.email}</Text>}
         <TouchableOpacity
           style={styles.button}
-          onPress={() => {
-            logout();
+          onPress={async () => {
+            await logout();
             router.replace("/login");
           }}
         >
