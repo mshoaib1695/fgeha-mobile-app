@@ -22,12 +22,13 @@ interface Option {
   requestTypeId: number;
   label: string;
   optionType: OptionType;
+  hint?: string | null;
   imageUrl?: string | null;
   config: { listKey?: string; content?: string; url?: string; phoneNumber?: string } | null;
   displayOrder: number;
 }
 
-function getOptionHint(opt: Option): string {
+function getDefaultOptionHint(opt: Option): string {
   if (opt.optionType === "form") return "Submit a request";
   if (opt.optionType === "list") return "Open list";
   if (opt.optionType === "rules") return "View rules";
@@ -35,6 +36,11 @@ function getOptionHint(opt: Option): string {
   if (opt.optionType === "link") return "Open link";
   if (opt.optionType === "phone") return "Tap to call";
   return opt.optionType;
+}
+
+function getOptionHint(opt: Option): string {
+  const custom = (opt.hint ?? "").trim();
+  return custom || getDefaultOptionHint(opt);
 }
 
 function getLinkHost(rawUrl?: string): string | null {
