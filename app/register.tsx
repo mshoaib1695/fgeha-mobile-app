@@ -45,6 +45,7 @@ export default function Register() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phoneCountryCode, setPhoneCountryCode] = useState("+92");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [houseNo, setHouseNo] = useState("");
@@ -58,6 +59,8 @@ export default function Register() {
   const [sectorsError, setSectorsError] = useState<string | null>(null);
   const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [retypePasswordError, setRetypePasswordError] = useState<string | null>(null);
+  const [passwordCriteriaError, setPasswordCriteriaError] = useState<string | null>(null);
   const isHandlingAutoFillRef = useRef(false);
   const { register } = useAuth();
   const router = useRouter();
@@ -123,8 +126,17 @@ export default function Register() {
       showError("Please add a photo of the back of your ID card.");
       return;
     }
-    if (password.length < 6) {
-      showError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      showError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+      showError("Password must be at least 8 characters and include both letters and numbers.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setRetypePasswordError("Passwords do not match.");
+      showError("Password and re-type password do not match.");
       return;
     }
     setLoading(true);
@@ -222,16 +234,62 @@ export default function Register() {
             keyboardType="email-address"
             editable={!loading}
           />
-          <Text style={styles.label}>Password (min 6 characters) *</Text>
+          <Text style={styles.label}>Password *</Text>
+          <Text style={styles.hint}>At least 8 characters, with both letters and numbers.</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, passwordCriteriaError && styles.inputError]}
             placeholder="••••••••"
             placeholderTextColor={colors.textMuted}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (retypePasswordError) setRetypePasswordError(null);
+              if (passwordCriteriaError) setPasswordCriteriaError(null);
+            }}
+            onBlur={() => {
+              if (password.length === 0) {
+                setPasswordCriteriaError(null);
+                return;
+              }
+              if (password.length < 8) {
+                setPasswordCriteriaError("Password must be at least 8 characters.");
+                return;
+              }
+              if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+                setPasswordCriteriaError("Password must include both letters and numbers.");
+                return;
+              }
+              setPasswordCriteriaError(null);
+            }}
             secureTextEntry
             editable={!loading}
           />
+          {passwordCriteriaError ? (
+            <Text style={styles.inlineError}>{passwordCriteriaError}</Text>
+          ) : null}
+          <Text style={styles.label}>Re-type password *</Text>
+          <TextInput
+            style={[styles.input, retypePasswordError && styles.inputError]}
+            placeholder="••••••••"
+            placeholderTextColor={colors.textMuted}
+            value={confirmPassword}
+            onChangeText={(text) => {
+              setConfirmPassword(text);
+              if (retypePasswordError) setRetypePasswordError(null);
+            }}
+            onBlur={() => {
+              if (confirmPassword.length > 0 && password !== confirmPassword) {
+                setRetypePasswordError("Passwords do not match.");
+              } else {
+                setRetypePasswordError(null);
+              }
+            }}
+            secureTextEntry
+            editable={!loading}
+          />
+          {retypePasswordError ? (
+            <Text style={styles.inlineError}>{retypePasswordError}</Text>
+          ) : null}
 
           <Text style={styles.label}>Phone *</Text>
           <View style={styles.row}>
@@ -565,6 +623,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#fafafa",
     color: colors.textPrimary,
+  },
+  inputError: {
+    borderColor: colors.error,
+    marginBottom: 4,
+  },
+  inlineError: {
+    fontSize: typography.smallSize,
+    color: colors.error,
+    marginBottom: 12,
   },
   inputReadOnly: { backgroundColor: colors.border + "20", color: colors.textSecondary },
   pickerTouchable: { justifyContent: "center" },

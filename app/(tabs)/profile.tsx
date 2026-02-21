@@ -52,6 +52,8 @@ export default function ProfileScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [retypePasswordError, setRetypePasswordError] = useState<string | null>(null);
+  const [newPasswordCriteriaError, setNewPasswordCriteriaError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -232,6 +234,8 @@ export default function ProfileScreen() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setRetypePasswordError(null);
+    setNewPasswordCriteriaError(null);
     setChangePasswordVisible(true);
   }, []);
 
@@ -244,12 +248,17 @@ export default function ProfileScreen() {
       showError("Enter your current password.");
       return;
     }
-    if (newP.length < 6) {
-      showError("New password must be at least 6 characters.");
+    if (newP.length < 8) {
+      showError("New password must be at least 8 characters.");
+      return;
+    }
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newP)) {
+      showError("New password must be at least 8 characters and include both letters and numbers.");
       return;
     }
     if (newP !== conf) {
-      showError("New password and confirmation do not match.");
+      setRetypePasswordError("Passwords do not match.");
+      showError("New password and re-type password do not match.");
       return;
     }
     setChangingPassword(true);
@@ -529,25 +538,61 @@ export default function ProfileScreen() {
               editable={!changingPassword}
             />
             <Text style={styles.label}>New password</Text>
+            <Text style={styles.modalHint}>At least 8 characters, with both letters and numbers.</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, newPasswordCriteriaError && styles.inputError]}
               value={newPassword}
-              onChangeText={setNewPassword}
-              placeholder="At least 6 characters"
+              onChangeText={(text) => {
+                setNewPassword(text);
+                if (retypePasswordError) setRetypePasswordError(null);
+                if (newPasswordCriteriaError) setNewPasswordCriteriaError(null);
+              }}
+              onBlur={() => {
+                if (newPassword.length === 0) {
+                  setNewPasswordCriteriaError(null);
+                  return;
+                }
+                if (newPassword.length < 8) {
+                  setNewPasswordCriteriaError("Password must be at least 8 characters.");
+                  return;
+                }
+                if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
+                  setNewPasswordCriteriaError("Password must include both letters and numbers.");
+                  return;
+                }
+                setNewPasswordCriteriaError(null);
+              }}
+              placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
               secureTextEntry
               editable={!changingPassword}
             />
-            <Text style={styles.label}>Confirm new password</Text>
+            {newPasswordCriteriaError ? (
+              <Text style={styles.inlineError}>{newPasswordCriteriaError}</Text>
+            ) : null}
+            <Text style={styles.label}>Re-type new password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, retypePasswordError && styles.inputError]}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Re-enter new password"
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (retypePasswordError) setRetypePasswordError(null);
+              }}
+              onBlur={() => {
+                if (confirmPassword.length > 0 && newPassword !== confirmPassword) {
+                  setRetypePasswordError("Passwords do not match.");
+                } else {
+                  setRetypePasswordError(null);
+                }
+              }}
+              placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
               secureTextEntry
               editable={!changingPassword}
             />
+            {retypePasswordError ? (
+              <Text style={styles.inlineError}>{retypePasswordError}</Text>
+            ) : null}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelBtn}
@@ -833,6 +878,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 4,
   },
+  modalHint: {
+    fontSize: typography.smallSize,
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
   value: { fontSize: typography.bodySize, color: colors.textPrimary, marginBottom: 16 },
   valueReadOnly: {
     fontSize: typography.bodySize,
@@ -855,6 +905,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
+  },
+  inputError: {
+    borderColor: colors.error,
+    marginBottom: 4,
+  },
+  inlineError: {
+    fontSize: typography.smallSize,
+    color: colors.error,
+    marginBottom: 12,
   },
   modalBackdrop: {
     flex: 1,
