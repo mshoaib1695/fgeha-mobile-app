@@ -22,7 +22,7 @@ export default function Pending() {
         )}
         <Text style={styles.title}>Account pending</Text>
         <Text style={styles.message}>
-          Your account is waiting for admin approval. You'll be able to submit requests once approved.
+          Your account is being set up. Please try again shortly.
         </Text>
         {user && <Text style={styles.email}>{user.email}</Text>}
         <TouchableOpacity

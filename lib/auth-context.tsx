@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAuthToken, API_URL } from "./api";
+import { getVToken } from "./v";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const baseUrl = (API_URL ?? "").replace(/\/+$/, "");
 
   const setToken = (t: string | null) => {
     setTokenState(t);
@@ -76,8 +78,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (parsedUser !== null || !storedUser) {
+          // Restore cached session first for fast startup, then verify with backend.
           setToken(storedToken);
           if (parsedUser) setUser(parsedUser);
+          try {
+            const url = `${baseUrl}/auth/me`;
+            const headers: Record<string, string> = {
+              Accept: "application/json",
+              Authorization: `Bearer ${storedToken}`,
+            };
+            const vToken = getVToken();
+            if (vToken) headers["X-V"] = vToken;
+            const res = await fetch(url, { method: "GET", headers });
+            if (res.ok) {
+              const freshUser = (await res.json()) as User;
+              setUser(freshUser);
+              await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+            } else if (res.status === 401 || res.status === 403) {
+              // Token is no longer valid (including deactivated account): force sign out.
+              setToken(null);
+              setUser(null);
+              await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+            }
+          } catch {
+            // Keep cached session on network/transient errors.
+          }
         }
       }
     } catch {
@@ -90,8 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadStored();
   }, []);
-
-  const baseUrl = (API_URL ?? "").replace(/\/+$/, "");
 
   const login = async (email: string, password: string) => {
     const url = `${baseUrl}/auth/login`;

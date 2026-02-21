@@ -53,7 +53,7 @@ export default function Index() {
       const delay = Math.max(0, MIN_DISPLAY_MS - elapsed);
       const t = setTimeout(() => {
         try {
-          if (token && user?.approvalStatus === "approved") {
+          if (token && user?.approvalStatus === "approved" && user?.accountStatus !== "deactivated") {
             router.replace("/(tabs)");
           } else if (token && user?.approvalStatus !== "approved") {
             router.replace("/pending");
