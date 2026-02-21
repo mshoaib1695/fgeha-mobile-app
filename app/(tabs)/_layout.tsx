@@ -6,7 +6,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { apiGet, API_URL, unwrapList } from "../../lib/api";
 import { colors, typography } from "../../lib/theme";
-import { HeaderTitle } from "../../lib/app-header";
 import { HomeTabIcon, RequestsTabIcon } from "../../lib/tab-icons";
 
 interface RequestType {
@@ -555,10 +554,36 @@ export default function TabsLayout() {
         headerTintColor: colors.textPrimary,
         headerTitleAlign: "left",
         headerTitleStyle: { color: colors.textPrimary },
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => setDrawerVisible(true)}
+            style={layoutStyles.headerLeftBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="menu" size={26} color={colors.textPrimary} />
+          </TouchableOpacity>
+        ),
         headerTitle: (props) => (
-          <HeaderTitle onLogoPress={() => setDrawerVisible(true)} profileImageUrl={headerProfileImageUrl}>
+          <Text style={layoutStyles.headerTitleText} numberOfLines={1} ellipsizeMode="tail">
             {(props.children as string) ?? ""}
-          </HeaderTitle>
+          </Text>
+        ),
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => setDrawerVisible(true)}
+            style={layoutStyles.headerRightBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            {headerProfileImageUrl ? (
+              <Image source={{ uri: headerProfileImageUrl }} style={layoutStyles.headerAvatar} resizeMode="cover" />
+            ) : (
+              <View style={layoutStyles.headerAvatarPlaceholder}>
+                <Ionicons name="person" size={18} color={colors.primary} />
+              </View>
+            )}
+          </TouchableOpacity>
         ),
         headerStyle: {
           backgroundColor: colors.cardBg,
@@ -665,8 +690,47 @@ export default function TabsLayout() {
   );
 }
 
+const HEADER_AVATAR_SIZE = 32;
+
 const layoutStyles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: "#000" },
+  headerLeftBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginLeft: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitleText: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 18,
+    letterSpacing: 0.3,
+  },
+  headerRightBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginRight: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerAvatar: {
+    width: HEADER_AVATAR_SIZE,
+    height: HEADER_AVATAR_SIZE,
+    borderRadius: HEADER_AVATAR_SIZE / 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  headerAvatarPlaceholder: {
+    width: HEADER_AVATAR_SIZE,
+    height: HEADER_AVATAR_SIZE,
+    borderRadius: HEADER_AVATAR_SIZE / 2,
+    backgroundColor: "rgba(13, 148, 136, 0.12)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   bottomFill: {
     position: "absolute",
     left: 0,

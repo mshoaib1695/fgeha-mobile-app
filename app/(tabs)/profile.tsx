@@ -11,6 +11,7 @@ import {
   Platform,
   TouchableOpacity,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -46,6 +47,11 @@ export default function ProfileScreen() {
   const [fullName, setFullName] = useState("");
   const [houseNo, setHouseNo] = useState("");
   const [streetNo, setStreetNo] = useState("");
+  const [changePasswordVisible, setChangePasswordVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -207,6 +213,63 @@ export default function ProfileScreen() {
       ]
     );
   }, [token, deactivating, logout, showSuccess, showError, router]);
+
+  const openChangePassword = useCallback(() => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setChangePasswordVisible(true);
+  }, []);
+
+  const changePassword = useCallback(async () => {
+    if (!token || changingPassword) return;
+    const curr = currentPassword.trim();
+    const newP = newPassword.trim();
+    const conf = confirmPassword.trim();
+    if (!curr) {
+      showError("Enter your current password.");
+      return;
+    }
+    if (newP.length < 6) {
+      showError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newP !== conf) {
+      showError("New password and confirmation do not match.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const url = `${API_URL.replace(/\/$/, "")}/users/me/change-password`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+      const vToken = getVToken();
+      if (vToken) headers["X-V"] = vToken;
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ currentPassword: curr, newPassword: newP }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        const msg = (err as { message?: string | string[] }).message;
+        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+      }
+      setChangePasswordVisible(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      showSuccess("Password changed. Use your new password next time you sign in.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to change password.";
+      showError(msg, "Change password");
+    } finally {
+      setChangingPassword(false);
+    }
+  }, [token, currentPassword, newPassword, confirmPassword, changingPassword, showError, showSuccess]);
 
   if (!user) {
     return (
@@ -399,6 +462,20 @@ export default function ProfileScreen() {
         )}
       </View>
       <View style={[styles.card, cardShadow]}>
+        <Text style={styles.sectionTitle}>Password</Text>
+        <Text style={styles.hint}>
+          Change your sign-in password. You will need your current password.
+        </Text>
+        <TouchableOpacity
+          style={styles.changePasswordBtn}
+          onPress={openChangePassword}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
+          <Text style={styles.changePasswordBtnText}>Change password</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={[styles.card, cardShadow]}>
         <Text style={styles.sectionTitle}>Account status</Text>
         <Text style={styles.hint}>
           Deactivate your profile without deleting your account.
@@ -414,6 +491,81 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={changePasswordVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !changingPassword && setChangePasswordVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => !changingPassword && setChangePasswordVisible(false)}
+        >
+          <Pressable style={styles.modalBox} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Change password</Text>
+            <Text style={styles.label}>Current password</Text>
+            <TextInput
+              style={styles.input}
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Enter current password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              editable={!changingPassword}
+            />
+            <Text style={styles.label}>New password</Text>
+            <TextInput
+              style={styles.input}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="At least 6 characters"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              editable={!changingPassword}
+            />
+            <Text style={styles.label}>Confirm new password</Text>
+            <TextInput
+              style={styles.input}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Re-enter new password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              editable={!changingPassword}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setChangePasswordVisible(false)}
+                disabled={changingPassword}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, changingPassword && styles.saveBtnDisabled]}
+                onPress={changePassword}
+                disabled={changingPassword}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[...gradientColors]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.saveBtnGradient}
+                >
+                  {changingPassword ? (
+                    <ActivityIndicator size="small" color={colors.textOnGradient} />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Change password</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
       </ScrollView>
     </View>
   );
@@ -644,6 +796,23 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySize,
     fontWeight: "700",
   },
+  changePasswordBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(13, 148, 136, 0.35)",
+    backgroundColor: "rgba(13, 148, 136, 0.08)",
+  },
+  changePasswordBtnText: {
+    fontSize: typography.bodySize,
+    fontWeight: "600",
+    color: colors.primary,
+  },
   label: {
     fontSize: typography.smallSize,
     fontWeight: "600",
@@ -672,5 +841,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalBox: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+    alignItems: "stretch",
   },
 });
