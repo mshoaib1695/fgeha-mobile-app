@@ -51,6 +51,9 @@ export default function ProfileScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [retypePasswordError, setRetypePasswordError] = useState<string | null>(null);
   const [newPwdCriteriaError, setNewPwdCriteriaError] = useState<string | null>(null);
@@ -234,6 +237,9 @@ export default function ProfileScreen() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setRetypePasswordError(null);
     setNewPwdCriteriaError(null);
     setChangePasswordVisible(true);
@@ -529,68 +535,107 @@ export default function ProfileScreen() {
           <Pressable style={styles.modalBox} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Change password</Text>
             <Text style={styles.label}>Current password</Text>
-            <TextInput
-              style={styles.input}
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              placeholder="Enter current password"
-              placeholderTextColor={colors.textMuted}
-              secureTextEntry
-              editable={!changingPassword}
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, styles.inputWithIcon]}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Enter current password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showCurrentPassword}
+                editable={!changingPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowCurrentPassword((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={showCurrentPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.label}>New password</Text>
             <Text style={styles.modalHint}>At least 8 characters, with both letters and numbers.</Text>
-            <TextInput
-              style={[styles.input, newPwdCriteriaError ? styles.inputError : null]}
-              value={newPassword}
-              onChangeText={(text) => {
-                setNewPassword(text);
-                if (retypePasswordError) setRetypePasswordError(null);
-                if (newPwdCriteriaError) setNewPwdCriteriaError(null);
-              }}
-              onBlur={() => {
-                if (newPassword.length === 0) {
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, styles.inputWithIcon, newPwdCriteriaError ? styles.inputError : null]}
+                value={newPassword}
+                onChangeText={(text) => {
+                  setNewPassword(text);
+                  if (retypePasswordError) setRetypePasswordError(null);
+                  if (newPwdCriteriaError) setNewPwdCriteriaError(null);
+                }}
+                onBlur={() => {
+                  if (newPassword.length === 0) {
+                    setNewPwdCriteriaError(null);
+                    return;
+                  }
+                  if (newPassword.length < 8) {
+                    setNewPwdCriteriaError("Password must be at least 8 characters.");
+                    return;
+                  }
+                  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
+                    setNewPwdCriteriaError("Password must include both letters and numbers.");
+                    return;
+                  }
                   setNewPwdCriteriaError(null);
-                  return;
-                }
-                if (newPassword.length < 8) {
-                  setNewPwdCriteriaError("Password must be at least 8 characters.");
-                  return;
-                }
-                if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
-                  setNewPwdCriteriaError("Password must include both letters and numbers.");
-                  return;
-                }
-                setNewPwdCriteriaError(null);
-              }}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textMuted}
-              secureTextEntry
-              editable={!changingPassword}
-            />
+                }}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showNewPassword}
+                editable={!changingPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowNewPassword((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={showNewPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
             {newPwdCriteriaError ? (
               <Text style={styles.inlineError}>{newPwdCriteriaError}</Text>
             ) : null}
             <Text style={styles.label}>Re-type new password</Text>
-            <TextInput
-              style={[styles.input, retypePasswordError && styles.inputError]}
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                if (retypePasswordError) setRetypePasswordError(null);
-              }}
-              onBlur={() => {
-                if (confirmPassword.length > 0 && newPassword !== confirmPassword) {
-                  setRetypePasswordError("Passwords do not match.");
-                } else {
-                  setRetypePasswordError(null);
-                }
-              }}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textMuted}
-              secureTextEntry
-              editable={!changingPassword}
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, styles.inputWithIcon, retypePasswordError && styles.inputError]}
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (retypePasswordError) setRetypePasswordError(null);
+                }}
+                onBlur={() => {
+                  if (confirmPassword.length > 0 && newPassword !== confirmPassword) {
+                    setRetypePasswordError("Passwords do not match.");
+                  } else {
+                    setRetypePasswordError(null);
+                  }
+                }}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showConfirmPassword}
+                editable={!changingPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowConfirmPassword((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
             {retypePasswordError ? (
               <Text style={styles.inlineError}>{retypePasswordError}</Text>
             ) : null}
@@ -618,7 +663,7 @@ export default function ProfileScreen() {
                   {changingPassword ? (
                     <ActivityIndicator size="small" color={colors.textOnGradient} />
                   ) : (
-                    <Text style={styles.saveBtnText}>Change password</Text>
+                    <Text style={styles.saveBtnText}>Confirm</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -766,7 +811,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -775,7 +820,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelBtnText: {
-    fontSize: typography.bodySize,
+    fontSize: 14,
     fontWeight: "600",
     color: colors.textSecondary,
   },
@@ -789,13 +834,13 @@ const styles = StyleSheet.create({
   saveBtnGradient: {
     flex: 1,
     paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   saveBtnText: {
     color: colors.textOnGradient,
-    fontSize: typography.bodySize,
+    fontSize: 14,
     fontWeight: "700",
   },
   avatarSection: { alignItems: "center", marginBottom: 8 },
@@ -906,6 +951,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
+  },
+  inputWithIcon: { marginBottom: 0, paddingRight: 44 },
+  passwordWrap: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    paddingVertical: 4,
   },
   inputError: {
     borderColor: colors.error,

@@ -21,6 +21,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../lib/auth-context";
 import { useAppAlert } from "../lib/alert-context";
 import { apiGet, API_URL, unwrapList, getNetworkErrorHint } from "../lib/api";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, gradientColors, typography } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
@@ -62,6 +63,8 @@ export default function Register() {
   const [logoError, setLogoError] = useState(false);
   const [retypePasswordError, setRetypePasswordError] = useState<string | null>(null);
   const [passwordCriteriaError, setPasswordCriteriaError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const isHandlingAutoFillRef = useRef(false);
   const { register } = useAuth();
   const router = useRouter();
@@ -256,57 +259,83 @@ export default function Register() {
           />
           <Text style={styles.label}>Password *</Text>
           <Text style={styles.hint}>At least 8 characters, with both letters and numbers.</Text>
-          <TextInput
-            style={[styles.input, passwordCriteriaError && styles.inputError]}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (retypePasswordError) setRetypePasswordError(null);
-              if (passwordCriteriaError) setPasswordCriteriaError(null);
-            }}
-            onBlur={() => {
-              if (password.length === 0) {
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={[styles.input, styles.inputWithIcon, passwordCriteriaError && styles.inputError]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (retypePasswordError) setRetypePasswordError(null);
+                if (passwordCriteriaError) setPasswordCriteriaError(null);
+              }}
+              onBlur={() => {
+                if (password.length === 0) {
+                  setPasswordCriteriaError(null);
+                  return;
+                }
+                if (password.length < 8) {
+                  setPasswordCriteriaError("Password must be at least 8 characters.");
+                  return;
+                }
+                if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+                  setPasswordCriteriaError("Password must include both letters and numbers.");
+                  return;
+                }
                 setPasswordCriteriaError(null);
-                return;
-              }
-              if (password.length < 8) {
-                setPasswordCriteriaError("Password must be at least 8 characters.");
-                return;
-              }
-              if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
-                setPasswordCriteriaError("Password must include both letters and numbers.");
-                return;
-              }
-              setPasswordCriteriaError(null);
-            }}
-            secureTextEntry
-            editable={!loading}
-          />
+              }}
+              secureTextEntry={!showPassword}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword((p) => !p)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
           {passwordCriteriaError ? (
             <Text style={styles.inlineError}>{passwordCriteriaError}</Text>
           ) : null}
           <Text style={styles.label}>Re-type password *</Text>
-          <TextInput
-            style={[styles.input, retypePasswordError && styles.inputError]}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            value={confirmPassword}
-            onChangeText={(text) => {
-              setConfirmPassword(text);
-              if (retypePasswordError) setRetypePasswordError(null);
-            }}
-            onBlur={() => {
-              if (confirmPassword.length > 0 && password !== confirmPassword) {
-                setRetypePasswordError("Passwords do not match.");
-              } else {
-                setRetypePasswordError(null);
-              }
-            }}
-            secureTextEntry
-            editable={!loading}
-          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={[styles.input, styles.inputWithIcon, retypePasswordError && styles.inputError]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textMuted}
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (retypePasswordError) setRetypePasswordError(null);
+              }}
+              onBlur={() => {
+                if (confirmPassword.length > 0 && password !== confirmPassword) {
+                  setRetypePasswordError("Passwords do not match.");
+                } else {
+                  setRetypePasswordError(null);
+                }
+              }}
+              secureTextEntry={!showConfirmPassword}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setShowConfirmPassword((p) => !p)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
           {retypePasswordError ? (
             <Text style={styles.inlineError}>{retypePasswordError}</Text>
           ) : null}
@@ -643,6 +672,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#fafafa",
     color: colors.textPrimary,
+  },
+  inputWithIcon: { marginBottom: 0, paddingRight: 44 },
+  passwordWrap: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    paddingVertical: 4,
   },
   inputError: {
     borderColor: colors.error,

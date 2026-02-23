@@ -15,6 +15,7 @@ import { useRouter, Link } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../lib/auth-context";
 import { useAppAlert } from "../lib/alert-context";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, gradientColors, typography } from "../lib/theme";
 
 const logoSource = require("../assets/logo.png");
@@ -33,6 +34,7 @@ export default function Login() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { login } = useAuth();
@@ -106,15 +108,28 @@ export default function Login() {
             editable={!loading}
           />
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!loading}
-          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={[styles.input, styles.inputWithIcon]}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword((p) => !p)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
@@ -130,6 +145,11 @@ export default function Login() {
               <Text style={styles.buttonText}>{loading ? "Signing in…" : "Sign in"}</Text>
             </LinearGradient>
           </TouchableOpacity>
+          <Link href="/forgot-password" asChild>
+            <TouchableOpacity style={styles.link} activeOpacity={0.7}>
+              <Text style={styles.linkText}>Forgot password?</Text>
+            </TouchableOpacity>
+          </Link>
           <Link href="/register" asChild>
             <TouchableOpacity style={styles.link} activeOpacity={0.7}>
               <Text style={styles.linkText}>Don't have an account? Register</Text>
@@ -226,6 +246,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#fafafa",
     color: colors.textPrimary,
+  },
+  inputWithIcon: { marginBottom: 0, paddingRight: 44 },
+  passwordWrap: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    paddingVertical: 4,
   },
   button: {
     borderRadius: 14,
