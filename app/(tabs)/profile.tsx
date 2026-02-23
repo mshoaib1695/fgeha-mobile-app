@@ -508,7 +508,7 @@ export default function ProfileScreen() {
       <View style={[styles.card, cardShadow]}>
         <Text style={styles.sectionTitle}>Account status</Text>
         <Text style={styles.hint}>
-          Deactivate your profile without deleting your account.
+          After 30 days we start deleting your data. You can come back before then to restore your profile.
         </Text>
         <TouchableOpacity
           style={[styles.deactivateBtn, deactivating && styles.deactivateBtnDisabled]}
