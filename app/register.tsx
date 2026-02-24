@@ -78,14 +78,24 @@ export default function Register() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.8,
       base64: true,
     });
     if (result.canceled || !result.assets?.[0]?.base64) return;
     const asset = result.assets[0];
+    const base64 = asset.base64 ?? "";
+    const sizeBytes = Math.ceil((base64.length * 3) / 4);
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (sizeBytes > maxSizeBytes) {
+      showError(
+        `This photo is too large (${(sizeBytes / (1024 * 1024)).toFixed(1)}MB). Please choose an image under 5MB.`,
+        "Image too large"
+      );
+      return;
+    }
     const mime = asset.mimeType ?? "image/jpeg";
-    const dataUrl = `data:${mime};base64,${asset.base64}`;
+    const dataUrl = `data:${mime};base64,${base64}`;
     if (side === "front") setIdCardFront(dataUrl);
     else setIdCardBack(dataUrl);
   };

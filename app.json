@@ -3,7 +3,7 @@
     "name": "FGEHA-RSP",
     "slug": "fgeha-app",
     "version": "1.0.5",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/logo.png",
     "scheme": "fgeha",
     "userInterfaceStyle": "automatic",
@@ -19,6 +19,7 @@
     },
     "android": {
       "versionCode": 6,
+      "resizableActivity": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#FFFFFF"
