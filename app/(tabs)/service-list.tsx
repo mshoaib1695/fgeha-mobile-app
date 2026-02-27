@@ -282,50 +282,6 @@ export default function ServiceListScreen() {
     </Modal>
   );
 
-  if (key === "requests") {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={[...gradientColors]}
-          style={[styles.header, { paddingTop: insets.top + 20 }]}
-        >
-          <HeaderIcon value={null} defaultIcon="📋" style={styles.headerIcon} />
-          <View style={styles.headerTextWrap}>
-            <Text style={styles.headerTitle} numberOfLines={2}>
-              List of requests
-            </Text>
-            <Text style={styles.headerSubtitle}>View and track in My Requests</Text>
-          </View>
-        </LinearGradient>
-        <View style={[styles.content, { paddingBottom }]}>
-          {optionImageBlock}
-          <View style={[styles.card, cardShadow]}>
-            <Text style={styles.body}>View and track your requests in My Requests.</Text>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => router.push("/(tabs)/my-requests")}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[...gradientColors]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.primaryButtonGradient}
-              >
-                <Text style={styles.primaryButtonText}>Open My Requests</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.backBtn} onPress={goBackToOptions} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={20} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={styles.backBtnText}>Back</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        {imagePreviewModal}
-      </View>
-    );
-  }
-
   if (key !== "daily_bulletin") {
     return (
       <View style={styles.container}>
@@ -791,31 +747,6 @@ const styles = StyleSheet.create({
   fileButtonText: {
     color: colors.textOnGradient,
     fontSize: typography.smallSize,
-    fontWeight: "700",
-  },
-  primaryButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginTop: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-      },
-      android: { elevation: 3 },
-    }),
-  },
-  primaryButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    color: colors.textOnGradient,
-    fontSize: typography.bodySize,
     fontWeight: "700",
   },
   backBtn: {
