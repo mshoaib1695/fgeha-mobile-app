@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../lib/auth-context";
 import { useAppAlert } from "../lib/alert-context";
-import { apiGet, API_URL, unwrapList, getNetworkErrorHint } from "../lib/api";
+import { apiGet, unwrapList, getNetworkErrorHint } from "../lib/api";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, gradientColors, typography } from "../lib/theme";
 
@@ -79,14 +79,14 @@ export default function Register() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: false,
-      quality: 0.8,
+      quality: 0.5,
       base64: true,
     });
     if (result.canceled || !result.assets?.[0]?.base64) return;
     const asset = result.assets[0];
     const base64 = asset.base64 ?? "";
     const sizeBytes = Math.ceil((base64.length * 3) / 4);
-    const maxSizeBytes = 5 * 1024 * 1024;
+    const maxSizeBytes = 8 * 1024 * 1024;
     if (sizeBytes > maxSizeBytes) {
       showError(
         `This photo is too large (${(sizeBytes / (1024 * 1024)).toFixed(1)}MB). Please choose an image under 5MB.`,
@@ -110,7 +110,7 @@ export default function Register() {
       if (items.length) setSubSectorId(items[0].id);
       else setSubSectorId(null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not load sub-sectors";
+      const msg = e instanceof Error ? e.message : "We couldn't load the list of areas. Please try again.";
       setSubSectors([]);
       setSubSectorId(null);
       setSectorsError(msg);
@@ -191,7 +191,7 @@ export default function Register() {
         );
         return;
       }
-      showError(msg || "Please try again.", "Registration failed");
+      showError(msg || "Something went wrong. Please try again.", "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -483,20 +483,13 @@ export default function Register() {
           {sectorsError ? (
             <View style={styles.errorWrap}>
               <Text style={styles.errorText}>{sectorsError}</Text>
-              <Text style={styles.errorSubtext}>API: {API_URL}</Text>
-              <Text style={styles.errorHintTitle}>How to fix:</Text>
               <Text style={styles.errorHintText}>{getNetworkErrorHint()}</Text>
-              {!API_URL.includes("localhost") && !API_URL.includes("127.0.0.1") && (
-                <Text style={styles.errorHintText}>
-                  If using a remote URL, open {API_URL}/users/sub-sectors in a browser to check if the backend is up.
-                </Text>
-              )}
               <TouchableOpacity style={styles.retryButton} onPress={loadSubSectors} disabled={loadingSectors}>
                 <Text style={styles.retryButtonText}>{loadingSectors ? "Loading…" : "Retry"}</Text>
               </TouchableOpacity>
             </View>
           ) : subSectors.length === 0 ? (
-            <Text style={styles.errorText}>No sub-sectors available.</Text>
+            <Text style={styles.errorText}>No areas available. Please try again later.</Text>
           ) : (
             <>
               <TouchableOpacity
@@ -506,7 +499,7 @@ export default function Register() {
               >
                 <Text style={subSectorId != null ? styles.pickerText : styles.pickerPlaceholder}>
                   {subSectorId != null
-                    ? subSectors.find((s) => s.id === subSectorId)?.name ?? `Sector #${subSectorId}`
+                    ? subSectors.find((s) => s.id === subSectorId)?.name ?? "Selected area"
                     : "Select sub-sector"}
                 </Text>
               </TouchableOpacity>

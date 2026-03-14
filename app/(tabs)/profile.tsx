@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -20,9 +21,15 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../lib/auth-context";
 import { useAppAlert } from "../../lib/alert-context";
-import { API_URL } from "../../lib/api";
+import { API_URL, apiGet, unwrapList } from "../../lib/api";
 import { getVToken } from "../../lib/v";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
+
+interface SubSector {
+  id: number;
+  name: string;
+  code: string;
+}
 
 const avatarSize = 120;
 const cardShadow = Platform.select({
@@ -57,14 +64,27 @@ export default function ProfileScreen() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [retypePasswordError, setRetypePasswordError] = useState<string | null>(null);
   const [newPwdCriteriaError, setNewPwdCriteriaError] = useState<string | null>(null);
+  const [subSectorId, setSubSectorId] = useState<number | null>(null);
+  const [subSectors, setSubSectors] = useState<SubSector[]>([]);
+  const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
       setFullName(user.fullName ?? "");
       setHouseNo(user.houseNo ?? "");
       setStreetNo(user.streetNo ?? "");
+      setSubSectorId(user.subSectorId ?? user.subSector?.id ?? null);
     }
   }, [user]);
+
+  useEffect(() => {
+    apiGet<unknown>("/users/sub-sectors")
+      .then((raw) => {
+        const items = unwrapList<SubSector>(raw);
+        setSubSectors(items);
+      })
+      .catch(() => setSubSectors([]));
+  }, []);
 
   const profileImageUrl =
     user?.profileImage && user.profileImage.trim()
@@ -131,13 +151,13 @@ export default function ProfileScreen() {
           /entity too large|payload too large|request entity too large|body too large/i.test(rawText);
         const msg = isTooLarge
           ? "Image is too large. Please choose a smaller photo."
-          : serverMsgStr || "Request failed";
+          : serverMsgStr || "Something went wrong. Please try again.";
         throw new Error(msg);
       }
       await refreshUser();
       showSuccess("Profile photo updated.");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to update photo.";
+      const msg = e instanceof Error ? e.message : "We couldn't update your photo. Please try again.";
       showError(msg, "Change photo");
     } finally {
       setUploading(false);
@@ -161,10 +181,11 @@ export default function ProfileScreen() {
       };
       const vToken = getVToken();
       if (vToken) headers["X-V"] = vToken;
-      const body: Record<string, string | undefined> = {
+      const body: Record<string, string | number | undefined> = {
         fullName: nameTrim,
         houseNo: houseNo.trim() || undefined,
         streetNo: streetNo.trim() || undefined,
+        subSectorId: subSectorId ?? undefined,
       };
       const res = await fetch(url, {
         method: "PATCH",
@@ -174,18 +195,18 @@ export default function ProfileScreen() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
         const msg = (err as { message?: string | string[] }).message;
-        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Something went wrong. Please try again.");
       }
       await refreshUser();
       setEditingAccount(false);
       showSuccess("Account details updated.");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to update account.";
+      const msg = e instanceof Error ? e.message : "We couldn't update your details. Please try again.";
       showError(msg, "Save");
     } finally {
       setSaving(false);
     }
-  }, [token, saving, fullName, houseNo, streetNo, showError, showSuccess, refreshUser]);
+  }, [token, saving, fullName, houseNo, streetNo, subSectorId, showError, showSuccess, refreshUser]);
 
   const deactivateAccount = useCallback(() => {
     if (!token || deactivating) return;
@@ -215,14 +236,14 @@ export default function ProfileScreen() {
               if (!res.ok) {
                 const err = await res.json().catch(() => ({ message: res.statusText }));
                 const msg = (err as { message?: string | string[] }).message;
-                throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+                throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Something went wrong. Please try again.");
               }
               await logout();
               showSuccess("Your profile has been deactivated.", () => {
                 router.replace("/login");
               });
             } catch (e) {
-              const msg = e instanceof Error ? e.message : "Failed to deactivate account.";
+              const msg = e instanceof Error ? e.message : "We couldn't deactivate your account. Please try again.";
               showError(msg, "Deactivate account");
             } finally {
               setDeactivating(false);
@@ -286,7 +307,7 @@ export default function ProfileScreen() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
         const msg = (err as { message?: string | string[] }).message;
-        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Request failed");
+        throw new Error(Array.isArray(msg) ? msg.join(". ") : msg ?? "Something went wrong. Please try again.");
       }
       setChangePasswordVisible(false);
       setCurrentPassword("");
@@ -294,7 +315,7 @@ export default function ProfileScreen() {
       setConfirmPassword("");
       showSuccess("Password changed. Use your new password next time you sign in.");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to change password.";
+      const msg = e instanceof Error ? e.message : "We couldn't change your password. Please try again.";
       showError(msg, "Change password");
     } finally {
       setChangingPassword(false);
@@ -418,6 +439,13 @@ export default function ProfileScreen() {
               <Text style={styles.detailLabel}>Street no</Text>
               <Text style={styles.detailValue} numberOfLines={1}>{user.streetNo?.trim() || "—"}</Text>
             </View>
+            <View style={styles.detailDivider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Sub-sector</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>
+                {user.subSector?.name?.trim() ?? (user.subSectorId != null ? `Sector #${user.subSectorId}` : "—")}
+              </Text>
+            </View>
           </View>
         ) : (
           <>
@@ -454,6 +482,61 @@ export default function ProfileScreen() {
               placeholderTextColor={colors.textMuted}
               editable={!saving}
             />
+            <Text style={styles.label}>Sub-sector</Text>
+            {subSectors.length === 0 ? (
+              <Text style={styles.valueReadOnly}>Loading sub-sectors…</Text>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[styles.input, styles.pickerTouchable]}
+                  onPress={() => !saving && setSectorPickerOpen(true)}
+                  disabled={saving}
+                >
+                  <Text style={subSectorId != null ? styles.pickerText : styles.pickerPlaceholder}>
+                    {subSectorId != null
+                      ? subSectors.find((s) => s.id === subSectorId)?.name ?? `Sector #${subSectorId}`
+                      : "Select sub-sector"}
+                  </Text>
+                </TouchableOpacity>
+                <Modal
+                  visible={sectorPickerOpen}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setSectorPickerOpen(false)}
+                >
+                  <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setSectorPickerOpen(false)}
+                  >
+                    <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                      <Text style={styles.modalSectorTitle}>Select sub-sector</Text>
+                      <FlatList
+                        data={subSectors}
+                        keyExtractor={(item) => String(item.id)}
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            style={styles.modalOption}
+                            onPress={() => {
+                              setSubSectorId(item.id);
+                              setSectorPickerOpen(false);
+                            }}
+                          >
+                            <Text style={styles.modalOptionText}>{item.name}</Text>
+                          </TouchableOpacity>
+                        )}
+                      />
+                      <TouchableOpacity
+                        style={styles.modalCancel}
+                        onPress={() => setSectorPickerOpen(false)}
+                      >
+                        <Text style={styles.modalCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                </Modal>
+              </>
+            )}
             <View style={styles.editActions}>
               <TouchableOpacity
                 style={styles.cancelBtn}
@@ -461,6 +544,7 @@ export default function ProfileScreen() {
                   setFullName(user?.fullName ?? "");
                   setHouseNo(user?.houseNo ?? "");
                   setStreetNo(user?.streetNo ?? "");
+                  setSubSectorId(user?.subSectorId ?? user?.subSector?.id ?? null);
                   setEditingAccount(false);
                 }}
                 disabled={saving}
@@ -952,6 +1036,32 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 16,
   },
+  pickerTouchable: { justifyContent: "center" },
+  pickerText: { fontSize: typography.bodySize, color: colors.textPrimary },
+  pickerPlaceholder: { fontSize: typography.bodySize, color: colors.textMuted },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    maxHeight: "70%",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  modalSectorTitle: {
+    fontSize: 18,
+    fontFamily: typography.fontFamilyBold,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  modalOption: { paddingVertical: 14, paddingHorizontal: 0 },
+  modalOptionText: { fontSize: typography.bodySize, color: colors.textSecondary },
+  modalCancel: { paddingVertical: 14, paddingHorizontal: 16, marginTop: 8, alignItems: "center" },
+  modalCancelText: { fontSize: typography.bodySize, fontWeight: "600", color: colors.primary },
   inputWithIcon: { marginBottom: 0, paddingRight: 44 },
   passwordWrap: {
     position: "relative",

@@ -19,6 +19,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../lib/auth-context";
 import { useAppAlert } from "../../lib/alert-context";
+import { useReviewModal } from "../../lib/review-modal-context";
 import { apiGet, apiPostForm, API_URL, unwrapList } from "../../lib/api";
 import { HeaderIcon } from "../../lib/header-icon";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
@@ -64,6 +65,7 @@ export default function CreateRequestFormScreen() {
   const insets = useSafeAreaInsets();
   const { user, refreshUser, isLoading: authLoading } = useAuth();
   const { showSuccess, showError } = useAppAlert();
+  const { tryShowReviewModalAfterRequest } = useReviewModal();
   const requestTypeId = id ? parseInt(id, 10) : null;
   const selectedOptionId = optionId ? parseInt(optionId, 10) : null;
   const paddingBottom = tabScreenPaddingBottom(insets.bottom);
@@ -269,7 +271,12 @@ export default function CreateRequestFormScreen() {
         requestNo
           ? `Your request ${requestNo} has been submitted. We'll process it as soon as possible.`
           : "Your request has been submitted. We'll process it as soon as possible.",
-        () => router.back(),
+        async () => {
+          const shown = await tryShowReviewModalAfterRequest({
+            onModalClose: () => router.back(),
+          });
+          if (!shown) router.back();
+        },
       );
     } catch (e) {
       showError((e as Error).message ?? "Something went wrong. Please try again.");

@@ -144,12 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) {
       if (res.status === 413) {
         throw new Error(
-          "Your ID card photos are too large. Please choose smaller images (under 5MB each) or take new photos."
+          "Your ID card photos are too large. Please choose smaller images or take new photos with your camera."
         );
       }
       const err = await res.json().catch(() => ({}));
-      const msg = (err as { message?: string }).message ?? "Registration failed";
-      throw new Error(typeof msg === "string" ? msg : "Registration failed");
+      const msg = (err as { message?: string }).message ?? "We couldn't complete your registration. Please try again.";
+      throw new Error(typeof msg === "string" ? msg : "We couldn't complete your registration. Please try again.");
     }
   };
 

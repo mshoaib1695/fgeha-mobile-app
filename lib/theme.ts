@@ -40,6 +40,10 @@ export function tabScreenPaddingBottom(insetsBottom: number): number {
 
 /** Typography – consistent, readable text */
 export const typography = {
+  /** Font families – Poppins for headings, system fallback */
+  fontFamily: "Poppins_400Regular",
+  fontFamilySemiBold: "Poppins_600SemiBold",
+  fontFamilyBold: "Poppins_700Bold",
   /** Body / paragraphs – size and spacing for readability */
   bodySize: 17,
   bodyLineHeight: 28,

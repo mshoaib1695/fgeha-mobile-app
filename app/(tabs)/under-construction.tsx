@@ -20,7 +20,7 @@ export default function UnderConstructionScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const displayTitle = title ?? "Maintenance";
-  const displayMessage = message ?? "This service is under maintenance. We'll be back soon.";
+  const displayMessage = message ?? "This service is under construction. We'll be back soon.";
 
   useEffect(() => {
     navigation.setOptions({ title: displayTitle });
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: typography.fontFamilyBold,
     color: colors.textOnGradient,
     letterSpacing: 0.3,
   },

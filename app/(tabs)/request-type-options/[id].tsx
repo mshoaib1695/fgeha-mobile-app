@@ -93,7 +93,7 @@ export default function RequestTypeOptionsScreen() {
         if (t?.underConstruction) {
           router.replace({
             pathname: "/(tabs)/under-construction",
-            params: { title: t.name, message: t.underConstructionMessage ?? "PAGE IS UNDER CONSTRUCTION 🚧" },
+            params: { title: t.name, message: t.underConstructionMessage ?? "This service is under construction. We'll be back soon." },
           });
           return;
         }
@@ -238,9 +238,9 @@ export default function RequestTypeOptionsScreen() {
         ))}
         {options.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyTitle}>No service options configured</Text>
+            <Text style={styles.emptyTitle}>No options available yet</Text>
             <Text style={styles.emptyText}>
-              Ask admin to add at least one form option before creating requests.
+              Please check back later or contact support if you need help.
             </Text>
           </View>
         ) : null}
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: typography.fontFamilyBold,
     color: colors.textOnGradient,
     letterSpacing: 0.3,
   },

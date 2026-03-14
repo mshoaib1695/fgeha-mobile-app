@@ -18,19 +18,6 @@ function isNetworkError(e: unknown): boolean {
   return false;
 }
 
-export function getNetworkErrorHint(): string {
-  if (API_URL.includes("localhost") || API_URL.includes("127.0.0.1"))
-    return "On a phone or emulator, use your computer's IP in .env: EXPO_PUBLIC_API_URL=http://YOUR_IP:8080";
-  const parts = [
-    "Restart Expo after .env changes: npx expo start -c",
-    "If you use Expo in the browser (web), the API must allow your app origin (CORS).",
-    "If the API supports HTTPS, try changing EXPO_PUBLIC_API_URL to https://api.fgeha.online",
-    "On a physical device, ensure it can reach the API (same network, DNS working).",
-    "For deployed servers: 1) Verify server is running, 2) Check DNS resolves correctly, 3) Test URL in device browser, 4) Check firewall/security groups allow connections, 5) Verify reverse proxy (nginx/apache) is configured correctly.",
-  ];
-  return parts.join(" ");
-}
-
 export async function api<T>(
   path: string,
   options: RequestInit = {}
@@ -63,33 +50,24 @@ export async function api<T>(
   } catch (e) {
     const rawMsg = e instanceof Error ? e.message : String(e);
     
-    // Check for timeout/abort
+    // Check for timeout/abort – show user-friendly message
     if (e instanceof Error && (e.name === "AbortError" || rawMsg.includes("timeout"))) {
-      const errorMsg = `Request timed out after 30 seconds. URL: ${url}\n\n` +
-        `Troubleshooting:\n` +
-        `1. Test in device browser: ${url}\n` +
-        `2. If browser works but app doesn't: Check if device/emulator can reach internet\n` +
-        `3. Try HTTPS: Change EXPO_PUBLIC_API_URL to https://api.fgeha.online\n` +
-        `4. Check network: Ensure device is on same network as server (or can reach internet)\n` +
-        `5. Emulator: Use 10.0.2.2 for localhost, or ensure emulator has internet access`;
-      throw new Error(errorMsg);
+      throw new Error("The request took too long. Please check your internet connection and try again.");
     }
-    
+
     if (isNetworkError(e)) {
-      const hint = getNetworkErrorHint();
-      throw new Error(`Cannot reach server (${rawMsg}). Attempted URL: ${url}. ${hint}`);
+      throw new Error("Unable to connect. Please check your internet connection and try again.");
     }
     const msg = rawMsg;
     if (msg === "Failed to fetch" || msg === "Network request failed" || msg.includes("Network Error")) {
-      const hint = getNetworkErrorHint();
-      throw new Error(`Cannot reach server (${rawMsg}). Attempted URL: ${url}. ${hint}`);
+      throw new Error("Unable to connect. Please check your internet connection and try again.");
     }
     throw e;
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
     const msg = (err as { message?: string | string[] }).message;
-    const text = Array.isArray(msg) ? msg.join(". ") : (msg ?? "Request failed");
+    const text = Array.isArray(msg) ? msg.join(". ") : (msg ?? "Something went wrong. Please try again.");
     throw new Error(text);
   }
   return res.json() as Promise<T>;
@@ -115,4 +93,9 @@ export function unwrapList<T>(raw: unknown): T[] {
     if (Array.isArray(i)) return i as T[];
   }
   return [];
+}
+
+/** User-friendly hint when network/connection fails */
+export function getNetworkErrorHint(): string {
+  return "Check your internet connection and try again. If the problem persists, try again in a few moments.";
 }

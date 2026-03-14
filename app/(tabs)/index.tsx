@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -15,9 +15,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useNavigation } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { apiGet, unwrapList } from "../../lib/api";
 import { useAppAlert } from "../../lib/alert-context";
-import { colors, gradientColors, tabScreenPaddingBottom } from "../../lib/theme";
+import { iconForRequestType } from "../../lib/request-type-icon";
+import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 import { API_URL } from "../../lib/api";
 
 interface RequestType {
@@ -30,16 +32,13 @@ interface RequestType {
   underConstructionMessage?: string | null;
 }
 
-function emojiForRequestType(slug: string, name: string): string {
-  const s = (slug || "").toLowerCase();
-  const n = (name || "").toLowerCase();
-  if (s.includes("garbage") || n.includes("garbage")) return "🗑️";
-  if (s.includes("water") || n.includes("water")) return "💧";
-  if (s.includes("sewer") || n.includes("sewer") || s.includes("drainage") || n.includes("drainage")) return "🚿";
-  if (s.includes("electric") || n.includes("electric") || s.includes("street_light") || n.includes("street light")) return "⚡";
-  if (s.includes("road") || n.includes("road")) return "🛣️";
-  if (s.includes("other") || n.includes("other")) return "🏠";
-  return "📋";
+interface NewsItem {
+  id: number;
+  title: string | null;
+  content: string | null;
+  imageUrl: string | null;
+  displayOrder: number;
+  openDetail?: boolean;
 }
 
 function subtitleForRequestType(slug: string, name: string): string {
@@ -54,12 +53,6 @@ function subtitleForRequestType(slug: string, name: string): string {
   return "Report an issue";
 }
 
-function isOthersType(slug: string, name: string): boolean {
-  const s = (slug || "").toLowerCase();
-  const n = (name || "").toLowerCase();
-  return s.includes("other") || n.includes("other");
-}
-
 function resolveIconUri(iconUrl: string | null | undefined): string | null {
   if (!iconUrl?.trim()) return null;
   const u = iconUrl.trim();
@@ -68,9 +61,15 @@ function resolveIconUri(iconUrl: string | null | undefined): string | null {
   return u.startsWith("/") ? `${base}${u}` : `${base}/${u}`;
 }
 
-const CARD_GAP = 14;
-const ICON_SIZE = 52;
-const ICON_WRAP_SIZE = 64;
+function resolveNewsImageUri(url: string | null | undefined): string | null {
+  return resolveIconUri(url);
+}
+
+const CAROUSEL_AUTO_SLIDE_INTERVAL = 4000;
+
+const CARD_GAP = 12;
+const ICON_SIZE = 48;
+const ICON_WRAP_SIZE = 60;
 
 const cardShadow = Platform.select({
   ios: {
@@ -89,9 +88,15 @@ export default function HomeScreen() {
   const { width: winW } = useWindowDimensions();
   const { showError } = useAppAlert();
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [newsSectionTitle, setNewsSectionTitle] = useState("Latest News");
+  const [showNewsSectionHeading, setShowNewsSectionHeading] = useState(true);
+  const [showNewsCarouselOverlay, setShowNewsCarouselOverlay] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const carouselRef = useRef<ScrollView>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const loadRequestTypes = async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -104,7 +109,7 @@ export default function HomeScreen() {
       );
       setRequestTypes(sorted);
     } catch (e) {
-      const msg = (e as Error).message ?? "Could not load request types.";
+      const msg = (e as Error).message ?? "We couldn't load services. Please try again.";
       setFetchError(msg);
       showError(msg);
     } finally {
@@ -112,17 +117,69 @@ export default function HomeScreen() {
     }
   };
 
+  const loadNews = async () => {
+    try {
+      const raw = await apiGet<unknown>("/news");
+      const list = Array.isArray(raw) ? raw : (raw as { data?: unknown[] })?.data ?? [];
+      const sorted = (list as NewsItem[]).sort(
+        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+      );
+      setNews(sorted);
+    } catch {
+      setNews([]);
+    }
+  };
+
+  const loadAppSettings = async () => {
+    try {
+      const data = await apiGet<{ newsSectionTitle?: string; showNewsSectionHeading?: boolean; showNewsCarouselOverlay?: boolean }>("/app-settings");
+      setNewsSectionTitle(data?.newsSectionTitle?.trim() || "Latest News");
+      setShowNewsSectionHeading(data?.showNewsSectionHeading !== false);
+      setShowNewsCarouselOverlay(data?.showNewsCarouselOverlay !== false);
+    } catch {
+      // keep default
+    }
+  };
+
   useEffect(() => {
     loadRequestTypes();
   }, []);
 
+  useEffect(() => {
+    loadNews();
+  }, []);
+
+  useEffect(() => {
+    loadAppSettings();
+  }, []);
+
+  // Auto-slide news carousel
+  useEffect(() => {
+    if (news.length <= 1) return;
+    const timer = setInterval(() => {
+      setCarouselIndex((prev) => {
+        const next = (prev + 1) % news.length;
+        carouselRef.current?.scrollTo({
+          x: next * winW,
+          animated: true,
+        });
+        return next;
+      });
+    }, CAROUSEL_AUTO_SLIDE_INTERVAL);
+    return () => clearInterval(timer);
+  }, [news.length, winW]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await loadRequestTypes(false);
+      await Promise.all([loadRequestTypes(false), loadNews(), loadAppSettings()]);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const openNews = (item: NewsItem) => {
+    router.push(`/news/${item.id}`);
   };
 
   // Handle device back button (Android hardware back button / iOS swipe back)
@@ -170,7 +227,7 @@ export default function HomeScreen() {
     if (item.underConstruction) {
       router.push({
         pathname: "/(tabs)/under-construction",
-        params: { title: item.name, message: item.underConstructionMessage ?? "PAGE IS UNDER CONSTRUCTION 🚧" },
+        params: { title: item.name, message: item.underConstructionMessage ?? "This service is under construction. We'll be back soon." },
       });
       return;
     }
@@ -203,7 +260,7 @@ export default function HomeScreen() {
     return (
       <View style={[styles.container, styles.centered, { paddingBottom }]}>
         <Text style={styles.emptyText}>
-          {fetchError ? fetchError : "No request types available."}
+          {fetchError ? fetchError : "No services available at the moment."}
         </Text>
         {fetchError ? (
           <TouchableOpacity style={styles.retryButton} onPress={() => loadRequestTypes()} activeOpacity={0.8}>
@@ -214,7 +271,7 @@ export default function HomeScreen() {
     );
   }
 
-  const paddingH = 20;
+  const paddingH = 18;
   const cardWidth = (winW - paddingH * 2 - CARD_GAP) / 2;
 
   return (
@@ -233,14 +290,14 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.grid}>
-        {requestTypes.map((item, index) => {
+          {requestTypes.map((item, index) => {
           const isLastItem = index === requestTypes.length - 1;
           const isOddCountLastItem = requestTypes.length % 2 === 1 && isLastItem;
           const fullWidth = isOddCountLastItem;
           const width = fullWidth ? winW - paddingH * 2 : cardWidth;
           const isFirstInRow = fullWidth || index % 2 === 0;
           const hasIcon = !!resolveIconUri(item.iconUrl);
-          const emoji = emojiForRequestType(item.slug, item.name);
+          const iconName = iconForRequestType(item.slug, item.name);
           const subtext = subtitleForRequestType(item.slug, item.name);
           if (fullWidth) {
             return (
@@ -264,7 +321,7 @@ export default function HomeScreen() {
                         resizeMode="contain"
                       />
                     ) : (
-                      <Text style={styles.othersEmoji}>{emoji}</Text>
+                      <Ionicons name={iconName} size={24} color={colors.primary} />
                     )}
                   </View>
                   <View style={styles.othersTextWrap}>
@@ -297,7 +354,7 @@ export default function HomeScreen() {
                     resizeMode="contain"
                   />
                 ) : (
-                  <Text style={styles.cardEmoji}>{emoji}</Text>
+                  <Ionicons name={iconName} size={30} color={colors.primary} />
                 )}
               </View>
               <View style={styles.cardTextCenter}>
@@ -308,6 +365,92 @@ export default function HomeScreen() {
           );
         })}
         </View>
+
+        {news.length > 0 ? (
+          <View style={styles.newsSection}>
+            {showNewsSectionHeading ? (
+              <Text style={styles.newsSectionTitle}>{newsSectionTitle}</Text>
+            ) : null}
+            <View style={[styles.carouselWrapper, { width: winW, height: winW / 2, marginHorizontal: -(paddingH) }]}>
+              <ScrollView
+                ref={carouselRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.x / winW);
+                  setCarouselIndex(Math.min(idx, news.length - 1));
+                }}
+                style={styles.carousel}
+                contentContainerStyle={styles.carouselContent}
+              >
+                {news.map((item) => {
+                  const imageUri = resolveNewsImageUri(item.imageUrl);
+                  const title = (item.title || "News").trim() || "News";
+                  const isClickable = item.openDetail !== false && item.openDetail !== 0;
+                  const slideContent = (
+                    <>
+                      {imageUri ? (
+                        <View style={styles.carouselImageWrap}>
+                          <Image
+                            source={{ uri: imageUri }}
+                            style={styles.carouselImage}
+                            resizeMode="cover"
+                          />
+                          {showNewsCarouselOverlay ? (
+                            <LinearGradient
+                              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.75)"]}
+                              style={styles.carouselOverlay}
+                            >
+                              <Text style={styles.carouselTitle} numberOfLines={2}>{title}</Text>
+                              <View style={styles.carouselReadMore}>
+                                <Text style={styles.carouselReadMoreText}>Read more</Text>
+                                <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.9)" />
+                              </View>
+                            </LinearGradient>
+                          ) : null}
+                        </View>
+                      ) : (
+                        <View style={styles.carouselPlaceholder}>
+                          <Ionicons name="newspaper-outline" size={48} color={colors.primary} />
+                          <Text style={styles.carouselPlaceholderTitle} numberOfLines={2}>{title}</Text>
+                        </View>
+                      )}
+                    </>
+                  );
+                  return isClickable ? (
+                    <TouchableOpacity
+                      key={item.id}
+                      activeOpacity={0.92}
+                      onPress={() => openNews(item)}
+                      style={[styles.carouselSlide, { width: winW, height: winW / 2 }]}
+                    >
+                      {slideContent}
+                    </TouchableOpacity>
+                  ) : (
+                    <View
+                      key={item.id}
+                      style={[styles.carouselSlide, { width: winW, height: winW / 2 }]}
+                    >
+                      {slideContent}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <View style={styles.carouselDots}>
+              {news.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.carouselDot,
+                    idx === carouselIndex && styles.carouselDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -317,31 +460,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f5f5" },
   gradient: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 22,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 6,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 20,
+    fontFamily: typography.fontFamilyBold,
     color: colors.textOnGradient,
     letterSpacing: 0.3,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: typography.fontFamily,
     color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
+    marginTop: 0,
   },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingTop: 20,
+    paddingTop: 12,
   },
   centered: {
     justifyContent: "center",
@@ -377,10 +521,10 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.cardBg,
-    borderRadius: 20,
-    padding: 12,
-    marginBottom: 16,
-    minHeight: 120,
+    borderRadius: 18,
+    padding: 11,
+    marginBottom: 12,
+    minHeight: 108,
   },
   cardOthers: {
     minHeight: undefined,
@@ -393,22 +537,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   othersIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
   othersIcon: {
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
     backgroundColor: "#FFFFFF",
-  },
-  othersEmoji: {
-    fontSize: 24,
   },
   othersTextWrap: {
     flex: 1,
@@ -422,7 +563,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 8,
     alignSelf: "center",
   },
   cardIcon: {
@@ -430,12 +571,9 @@ const styles = StyleSheet.create({
     height: ICON_SIZE,
     backgroundColor: "#FFFFFF",
   },
-  cardEmoji: {
-    fontSize: 28,
-  },
   cardTitle: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 13,
+    fontFamily: typography.fontFamilyBold,
     color: colors.textPrimary,
     marginBottom: 2,
     letterSpacing: 0.15,
@@ -443,7 +581,7 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     fontSize: 11,
     color: colors.textSecondary,
-    lineHeight: 15,
+    lineHeight: 14,
     opacity: 0.9,
   },
   cardTextCenter: {
@@ -454,5 +592,107 @@ const styles = StyleSheet.create({
   },
   cardSubtitleCenter: {
     textAlign: "center",
+  },
+  newsSection: {
+    marginTop: 12,
+    marginBottom: 20,
+    alignSelf: "stretch",
+  },
+  newsSectionTitle: {
+    fontSize: 18,
+    fontFamily: typography.fontFamilyBold,
+    color: colors.textPrimary,
+    marginBottom: 14,
+    paddingHorizontal: 4,
+    letterSpacing: 0.2,
+  },
+  carouselWrapper: {
+    borderRadius: 4,
+    overflow: "hidden",
+    backgroundColor: colors.cardBg,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  carousel: {},
+  carouselContent: {},
+  carouselSlide: {
+    overflow: "hidden",
+    backgroundColor: colors.cardBg,
+  },
+  carouselImageWrap: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
+    overflow: "hidden",
+  },
+  carouselImage: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#e8e8e8",
+  },
+  carouselOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 60,
+  },
+  carouselTitle: {
+    fontSize: 18,
+    fontFamily: typography.fontFamilyBold,
+    color: "#fff",
+    lineHeight: 24,
+    letterSpacing: 0.2,
+  },
+  carouselReadMore: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 6,
+  },
+  carouselReadMoreText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.9)",
+    fontFamily: typography.fontFamilySemiBold,
+  },
+  carouselPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#f0f4f8",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  carouselPlaceholderTitle: {
+    fontSize: 16,
+    fontFamily: typography.fontFamilySemiBold,
+    color: colors.textPrimary,
+    marginTop: 12,
+    textAlign: "center",
+  },
+  carouselDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  carouselDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#ccc",
+  },
+  carouselDotActive: {
+    width: 24,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
 });

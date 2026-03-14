@@ -4,7 +4,9 @@ import { TouchableOpacity, Text, View, StyleSheet, Platform, Pressable, Modal, S
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
+import { useReviewModal } from "../../lib/review-modal-context";
 import { apiGet, API_URL, unwrapList } from "../../lib/api";
+import { iconForRequestType } from "../../lib/request-type-icon";
 import { colors, typography } from "../../lib/theme";
 import { HomeTabIcon, RequestsTabIcon } from "../../lib/tab-icons";
 
@@ -15,18 +17,6 @@ interface RequestType {
   displayOrder: number;
   underConstruction?: boolean;
   underConstructionMessage?: string | null;
-}
-
-function emojiForRequestType(slug: string, name: string): string {
-  const s = (slug || "").toLowerCase();
-  const n = (name || "").toLowerCase();
-  if (s.includes("garbage") || n.includes("garbage")) return "🗑️";
-  if (s.includes("water") || n.includes("water")) return "💧";
-  if (s.includes("sewer") || n.includes("sewer") || s.includes("drainage") || n.includes("drainage")) return "🚿";
-  if (s.includes("electric") || n.includes("electric") || s.includes("street_light") || n.includes("street light")) return "⚡";
-  if (s.includes("road") || n.includes("road")) return "🛣️";
-  if (s.includes("other") || n.includes("other")) return "🏠";
-  return "📋";
 }
 
 const TAB_BAR = {
@@ -173,7 +163,9 @@ function LeftDrawer({
               onPress={() => { onClose(); onProfilePress(); }}
               activeOpacity={0.7}
             >
-              <Text style={drawerStyles.menuItemEmoji}>👤</Text>
+              <View style={drawerStyles.menuItemIconWrap}>
+                <Ionicons name="person-outline" size={22} color={colors.primary} />
+              </View>
               <Text style={drawerStyles.menuItemLabel}>Profile settings</Text>
             </TouchableOpacity>
             {requestTypes.map((rt) => (
@@ -186,7 +178,9 @@ function LeftDrawer({
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={drawerStyles.menuItemEmoji}>{emojiForRequestType(rt.slug, rt.name)}</Text>
+                <View style={drawerStyles.menuItemIconWrap}>
+                  <Ionicons name={iconForRequestType(rt.slug, rt.name)} size={22} color={colors.primary} />
+                </View>
                 <Text style={drawerStyles.menuItemLabel} numberOfLines={1}>{rt.name}</Text>
               </TouchableOpacity>
             ))}
@@ -237,7 +231,7 @@ const drawerStyles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: typography.fontFamilyBold,
     color: colors.textPrimary,
   },
   closeBtn: {
@@ -288,8 +282,10 @@ const drawerStyles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: 12,
   },
-  menuItemEmoji: {
-    fontSize: 22,
+  menuItemIconWrap: {
+    width: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   menuItemLabel: {
     flex: 1,
@@ -471,6 +467,7 @@ const signOutModalStyles = StyleSheet.create({
 
 export default function TabsLayout() {
   const { logout, user } = useAuth();
+  const { checkAndShowOnSession } = useReviewModal();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -499,6 +496,10 @@ export default function TabsLayout() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    checkAndShowOnSession();
+  }, [checkAndShowOnSession]);
 
   const handleRequestTypePress = async (item: RequestType) => {
     if (item.underConstruction) {
@@ -703,7 +704,7 @@ const layoutStyles = StyleSheet.create({
   },
   headerTitleText: {
     color: colors.textPrimary,
-    fontWeight: "700",
+    fontFamily: typography.fontFamilyBold,
     fontSize: 18,
     letterSpacing: 0.3,
   },

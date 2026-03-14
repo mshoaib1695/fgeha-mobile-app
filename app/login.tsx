@@ -207,13 +207,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: typography.fontFamilyBold,
     color: colors.textOnGradient,
     letterSpacing: 0.3,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: typography.subtitleSize,
+    fontFamily: typography.fontFamily,
     color: "rgba(255,255,255,0.9)",
   },
   content: {
