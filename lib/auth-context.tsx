@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAuthToken, API_URL } from "./api";
-import { checkV, getVToken } from "./v";
+import { checkV, clearVCache, getVToken } from "./v";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -82,25 +82,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(storedToken);
           if (parsedUser) setUser(parsedUser);
           try {
-            const vState = await checkV();
-            if (vState.status !== "ok") {
-              // License token might not be available yet; avoid false logout on app reopen.
-              return;
-            }
-            const url = `${baseUrl}/auth/me`;
-            const headers: Record<string, string> = {
-              Accept: "application/json",
-              Authorization: `Bearer ${storedToken}`,
+            const fetchMe = async (): Promise<Response | null> => {
+              const vState = await checkV();
+              if (vState.status !== "ok") return null;
+              const url = `${baseUrl}/auth/me`;
+              const headers: Record<string, string> = {
+                Accept: "application/json",
+                Authorization: `Bearer ${storedToken}`,
+              };
+              const vToken = getVToken();
+              if (vToken) headers["X-V"] = vToken;
+              return fetch(url, { method: "GET", headers });
             };
-            const vToken = getVToken();
-            if (vToken) headers["X-V"] = vToken;
-            const res = await fetch(url, { method: "GET", headers });
-            if (res.ok) {
+
+            let res = await fetchMe();
+            if (res && (res.status === 401 || res.status === 403)) {
+              // Production can hit transient auth failures on reopen (e.g. stale license token/cache).
+              // Refresh license cache and retry once before deciding session is invalid.
+              clearVCache();
+              res = await fetchMe();
+            }
+
+            if (res?.ok) {
               const freshUser = (await res.json()) as User;
               setUser(freshUser);
               await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
-            } else if (res.status === 401 || res.status === 403) {
-              // Token is no longer valid (including deactivated account): force sign out.
+            } else if (res && (res.status === 401 || res.status === 403) && !parsedUser) {
+              // If we don't even have cached user data, force sign out on confirmed unauthorized.
               setToken(null);
               setUser(null);
               await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
