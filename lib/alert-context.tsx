@@ -8,6 +8,7 @@ interface AlertState extends AppAlertOptions {
 interface AlertContextValue {
   showSuccess: (message: string, onPress?: () => void) => void;
   showError: (message: string, title?: string, onPress?: () => void) => void;
+  showWarning: (message: string, title?: string, onPress?: () => void) => void;
   showInfo: (title: string, message: string, onPress?: () => void) => void;
   showAlert: (options: Omit<AppAlertOptions, "onPress"> & { onPress?: () => void }) => void;
 }
@@ -16,6 +17,7 @@ const defaultTitle: Record<AppAlertType, string> = {
   success: "Done!",
   error: "Please check",
   info: "Notice",
+  warning: "Warning",
 };
 
 const AlertContext = createContext<AlertContextValue | null>(null);
@@ -84,6 +86,23 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     [hide]
   );
 
+  const showWarning = useCallback(
+    (message: string, title?: string, onPress?: () => void) => {
+      setState({
+        visible: true,
+        type: "warning",
+        title: title ?? defaultTitle.warning,
+        message,
+        buttonText: "OK",
+        onPress: () => {
+          hide();
+          onPress?.();
+        },
+      });
+    },
+    [hide]
+  );
+
   const showAlert = useCallback(
     (options: Omit<AppAlertOptions, "onPress"> & { onPress?: () => void }) => {
       setState({
@@ -99,7 +118,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AlertContext.Provider value={{ showSuccess, showError, showInfo, showAlert }}>
+    <AlertContext.Provider value={{ showSuccess, showError, showWarning, showInfo, showAlert }}>
       {children}
       <AppAlert
         visible={state.visible}

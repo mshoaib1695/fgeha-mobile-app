@@ -10,7 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./theme";
 
-export type AppAlertType = "success" | "error" | "info";
+export type AppAlertType = "success" | "error" | "info" | "warning";
 
 export interface AppAlertOptions {
   type: AppAlertType;
@@ -37,6 +37,12 @@ const config = {
     icon: "information-circle" as const,
     iconColor: colors.primary,
     bgIcon: "rgba(13, 148, 136, 0.12)",
+    titleColor: colors.textPrimary,
+  },
+  warning: {
+    icon: "warning" as const,
+    iconColor: "#d97706",
+    bgIcon: "rgba(217, 119, 6, 0.12)",
     titleColor: colors.textPrimary,
   },
 };
@@ -67,11 +73,11 @@ export function AppAlert({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <TouchableOpacity
-            style={[styles.button, type === "error" && styles.buttonError]}
+            style={[styles.button, type === "error" && styles.buttonError, type === "warning" && styles.buttonWarning]}
             onPress={onPress}
             activeOpacity={0.85}
           >
-            <Text style={[styles.buttonText, type === "error" && styles.buttonTextError]}>
+            <Text style={[styles.buttonText, type === "error" && styles.buttonTextError, type === "warning" && styles.buttonTextWarning]}>
               {buttonText}
             </Text>
           </TouchableOpacity>
@@ -137,12 +143,18 @@ const styles = StyleSheet.create({
   buttonError: {
     backgroundColor: colors.error,
   },
+  buttonWarning: {
+    backgroundColor: "#d97706",
+  },
   buttonText: {
     fontSize: 17,
     fontWeight: "700",
     color: colors.textOnGradient,
   },
   buttonTextError: {
+    color: "#fff",
+  },
+  buttonTextWarning: {
     color: "#fff",
   },
 });

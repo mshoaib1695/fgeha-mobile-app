@@ -21,6 +21,7 @@ import { useAppAlert } from "../../lib/alert-context";
 import { iconForRequestType } from "../../lib/request-type-icon";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 import { API_URL } from "../../lib/api";
+import { fetchOutstandingStatus, getOutstandingAlertMessage } from "../../lib/outstanding";
 
 interface RequestType {
   id: number;
@@ -86,7 +87,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
-  const { showError } = useAppAlert();
+  const { showError, showWarning } = useAppAlert();
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [newsSectionTitle, setNewsSectionTitle] = useState("Latest News");
@@ -97,6 +98,7 @@ export default function HomeScreen() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const carouselRef = useRef<ScrollView>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const outstandingNoticeShownRef = useRef(false);
 
   const loadRequestTypes = async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -152,6 +154,21 @@ export default function HomeScreen() {
   useEffect(() => {
     loadAppSettings();
   }, []);
+
+  useEffect(() => {
+    const showOutstandingNotice = async () => {
+      if (outstandingNoticeShownRef.current) return;
+      const outstanding = await fetchOutstandingStatus();
+      if (!outstanding || Number(outstanding.totalOutstanding || 0) <= 0) return;
+      outstandingNoticeShownRef.current = true;
+      if (outstanding.isBlocked) {
+        showError(getOutstandingAlertMessage(outstanding), "Outstanding payment (blocked)");
+      } else {
+        showWarning(getOutstandingAlertMessage(outstanding), "Outstanding payment warning");
+      }
+    };
+    void showOutstandingNotice();
+  }, [showError, showWarning]);
 
   // Auto-slide news carousel
   useEffect(() => {
@@ -224,6 +241,11 @@ export default function HomeScreen() {
   }, [router, navigation]);
 
   const openRequestType = async (item: RequestType) => {
+    const outstanding = await fetchOutstandingStatus();
+    if (outstanding?.isBlocked) {
+      showError(getOutstandingAlertMessage(outstanding), "Outstanding payment");
+      return;
+    }
     if (item.underConstruction) {
       router.push({
         pathname: "/(tabs)/under-construction",

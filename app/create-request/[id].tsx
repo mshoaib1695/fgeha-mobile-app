@@ -25,6 +25,7 @@ import { HeaderIcon } from "../../lib/header-icon";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../lib/theme";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import { fetchOutstandingStatus, getOutstandingAlertMessage } from "../../lib/outstanding";
 
 function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -64,7 +65,7 @@ export default function CreateRequestFormScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, refreshUser, isLoading: authLoading } = useAuth();
-  const { showSuccess, showError } = useAppAlert();
+  const { showSuccess, showError, showInfo } = useAppAlert();
   const { tryShowReviewModalAfterRequest } = useReviewModal();
   const requestTypeId = id ? parseInt(id, 10) : null;
   const selectedOptionId = optionId ? parseInt(optionId, 10) : null;
@@ -222,6 +223,11 @@ export default function CreateRequestFormScreen() {
   }, []);
 
   const handleSubmit = async () => {
+    const outstanding = await fetchOutstandingStatus();
+    if (outstanding?.isBlocked) {
+      showInfo("Outstanding payment", getOutstandingAlertMessage(outstanding));
+      return;
+    }
     if (requestTypeId == null || isNaN(requestTypeId)) {
       showError("Invalid request type. Please go back and choose a request type again.");
       return;

@@ -9,6 +9,10 @@ import { apiGet, API_URL, unwrapList } from "../../lib/api";
 import { iconForRequestType } from "../../lib/request-type-icon";
 import { colors, typography } from "../../lib/theme";
 import { HomeTabIcon, RequestsTabIcon } from "../../lib/tab-icons";
+import { useAppAlert } from "../../lib/alert-context";
+import { fetchOutstandingStatus, getOutstandingAlertMessage } from "../../lib/outstanding";
+import { registerDuesPushToken } from "../../lib/push-notifications";
+import * as Notifications from "expo-notifications";
 
 interface RequestType {
   id: number;
@@ -466,9 +470,10 @@ const signOutModalStyles = StyleSheet.create({
 });
 
 export default function TabsLayout() {
-  const { logout, user } = useAuth();
+  const { logout, user, token } = useAuth();
   const { checkAndShowOnSession } = useReviewModal();
   const router = useRouter();
+  const { showInfo, showError } = useAppAlert();
   const insets = useSafeAreaInsets();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
@@ -501,7 +506,57 @@ export default function TabsLayout() {
     checkAndShowOnSession();
   }, [checkAndShowOnSession]);
 
+  useEffect(() => {
+    if (!user || !token) return;
+    registerDuesPushToken().catch(() => {
+      // Silent fail: dues flow should keep working without push permission/token.
+    });
+  }, [user, token]);
+
+  useEffect(() => {
+    const openFromResponse = (response: Notifications.NotificationResponse) => {
+      const payload = response.notification.request.content.data ?? {};
+      const target = String((payload as { targetScreen?: string }).targetScreen ?? "");
+      if (target === "outstanding-payment") {
+        const p = payload as {
+          eventType?: string;
+          entryCategory?: string | null;
+          entryAmount?: number | string | null;
+          totalOutstanding?: number | string | null;
+          entryCreatedAt?: string | null;
+        };
+        router.push({
+          pathname: "/(tabs)/outstanding-payment",
+          params: {
+            fromNotification: "1",
+            eventType: String(p.eventType ?? ""),
+            entryCategory: p.entryCategory != null ? String(p.entryCategory) : "",
+            entryAmount: p.entryAmount != null ? String(p.entryAmount) : "",
+            totalOutstanding: p.totalOutstanding != null ? String(p.totalOutstanding) : "",
+            entryCreatedAt: p.entryCreatedAt != null ? String(p.entryCreatedAt) : "",
+          },
+        });
+      }
+    };
+
+    const sub = Notifications.addNotificationResponseReceivedListener(openFromResponse);
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) openFromResponse(response);
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    return () => sub.remove();
+  }, [router]);
+
   const handleRequestTypePress = async (item: RequestType) => {
+    const outstanding = await fetchOutstandingStatus();
+    if (outstanding?.isBlocked) {
+      showError("Outstanding payment", getOutstandingAlertMessage(outstanding));
+      return;
+    }
     if (item.underConstruction) {
       router.push({
         pathname: "/(tabs)/under-construction",
@@ -684,6 +739,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{ title: "Profile", headerShown: false, href: null }}
+      />
+      <Tabs.Screen
+        name="outstanding-payment"
+        options={{ title: "Outstanding Payment", headerShown: true, href: null }}
       />
       </Tabs>
       <View style={[layoutStyles.bottomFill, { height: insets.bottom }]} />

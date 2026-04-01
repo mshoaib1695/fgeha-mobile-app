@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAuthToken, API_URL } from "./api";
-import { getVToken } from "./v";
+import { checkV, getVToken } from "./v";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -82,6 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(storedToken);
           if (parsedUser) setUser(parsedUser);
           try {
+            const vState = await checkV();
+            if (vState.status !== "ok") {
+              // License token might not be available yet; avoid false logout on app reopen.
+              return;
+            }
             const url = `${baseUrl}/auth/me`;
             const headers: Record<string, string> = {
               Accept: "application/json",
@@ -154,6 +159,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      if (token) {
+        const { apiPatch } = await import("./api");
+        await apiPatch("/users/me/push-token", { pushToken: null });
+      }
+    } catch {
+      // ignore push-token cleanup failures during logout
+    }
     setToken(null);
     setUser(null);
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);

@@ -15,6 +15,8 @@ import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, unwrapList } from "../../../lib/api";
 import { colors, gradientColors, tabScreenPaddingBottom, typography } from "../../../lib/theme";
+import { useAppAlert } from "../../../lib/alert-context";
+import { fetchOutstandingStatus, getOutstandingAlertMessage } from "../../../lib/outstanding";
 
 type OptionType = "form" | "list" | "rules" | "notification" | "link" | "phone";
 interface Option {
@@ -74,6 +76,7 @@ export default function RequestTypeOptionsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { showInfo } = useAppAlert();
   const requestTypeId = id ? +id : 0;
   const [options, setOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +114,14 @@ export default function RequestTypeOptionsScreen() {
     navigation.setOptions({ title });
   }, [navigation, title]);
 
-  const handleOptionPress = (opt: Option) => {
+  const handleOptionPress = async (opt: Option) => {
+    if (opt.optionType === "form") {
+      const outstanding = await fetchOutstandingStatus();
+      if (outstanding?.isBlocked) {
+        showInfo("Outstanding payment", getOutstandingAlertMessage(outstanding));
+        return;
+      }
+    }
     if (opt.optionType === "form") {
       router.push({
         pathname: "/create-request/[id]",
@@ -204,7 +214,7 @@ export default function RequestTypeOptionsScreen() {
               cardShadow,
               (opt.optionType === "link" || opt.optionType === "phone") && styles.optionCardLink,
             ]}
-            onPress={() => handleOptionPress(opt)}
+            onPress={() => void handleOptionPress(opt)}
             activeOpacity={0.78}
           >
             <Text style={styles.optionLabel}>{opt.label}</Text>
