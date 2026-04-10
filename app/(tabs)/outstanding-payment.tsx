@@ -74,7 +74,7 @@ export default function OutstandingPaymentScreen() {
         : "Updated successfully";
 
   const formatPKR = (value: number) =>
-    `PKR ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    `PKR ${Math.round(Number(value || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
   return (
     <View style={styles.screen}>

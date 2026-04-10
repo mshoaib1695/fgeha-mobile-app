@@ -36,7 +36,7 @@ export function getOutstandingAlertMessage(status: OutstandingStatus): string {
   const extraMessage = String(status.message ?? "").trim();
   const showExtraMessage = extraMessage && !/within\s+\d+\s+days/i.test(extraMessage);
   return (
-    `Outstanding payment: ${total.toFixed(2)}\n` +
+    `Outstanding payment: ${Math.round(total)}\n` +
     `Due by: ${due}\n` +
     (showExtraMessage ? extraMessage : "Please clear your dues to continue services.") +
     (contactLine ? `\n${contactLine}` : "")
