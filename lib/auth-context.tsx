@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setAuthToken, API_URL } from "./api";
+import { Alert } from "react-native";
+import { setAuthToken, setAuthFailureHandler, API_URL } from "./api";
 import { checkV, clearVCache, getVToken } from "./v";
 
 const TOKEN_KEY = "token";
@@ -54,11 +55,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionExpiredNoticeShownRef = useRef(false);
   const baseUrl = (API_URL ?? "").replace(/\/+$/, "");
 
   const setToken = (t: string | null) => {
     setTokenState(t);
     setAuthToken(t);
+    if (t) sessionExpiredNoticeShownRef.current = false;
+  };
+
+  const clearSession = async () => {
+    setToken(null);
+    setUser(null);
+    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
   };
 
   const loadStored = async () => {
@@ -129,6 +138,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadStored();
   }, []);
 
+  useEffect(() => {
+    setAuthFailureHandler(async () => {
+      if (!sessionExpiredNoticeShownRef.current) {
+        sessionExpiredNoticeShownRef.current = true;
+        Alert.alert("Session expired", "Please login again.");
+      }
+      await clearSession();
+    });
+    return () => {
+      setAuthFailureHandler(null);
+    };
+  }, []);
+
   const login = async (email: string, password: string) => {
     const url = `${baseUrl}/auth/login`;
     const res = await fetch(url, {
@@ -175,9 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore push-token cleanup failures during logout
     }
-    setToken(null);
-    setUser(null);
-    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    await clearSession();
   };
 
   const refreshUser = async () => {

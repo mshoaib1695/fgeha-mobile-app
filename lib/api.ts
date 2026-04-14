@@ -3,9 +3,14 @@ import { getVToken } from "./v";
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://api.fgeha.online";
 
 let token: string | null = null;
+let authFailureHandler: (() => void | Promise<void>) | null = null;
 
 export function setAuthToken(t: string | null) {
   token = t;
+}
+
+export function setAuthFailureHandler(handler: (() => void | Promise<void>) | null) {
+  authFailureHandler = handler;
 }
 
 function isNetworkError(e: unknown): boolean {
@@ -65,6 +70,14 @@ export async function api<T>(
     throw e;
   }
   if (!res.ok) {
+    if (res.status === 401 && authFailureHandler) {
+      await Promise.resolve(authFailureHandler()).catch(() => {
+        // Keep original API error if auth cleanup fails.
+      });
+    }
+    if (res.status === 401) {
+      throw new Error("Session expired. Please login again.");
+    }
     const err = await res.json().catch(() => ({ message: res.statusText }));
     const msg = (err as { message?: string | string[] }).message;
     const text = Array.isArray(msg) ? msg.join(". ") : (msg ?? "Something went wrong. Please try again.");
