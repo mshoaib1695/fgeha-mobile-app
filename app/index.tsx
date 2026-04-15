@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import Constants from "expo-constants";
 import { useAuth } from "../lib/auth-context";
 import { checkV, clearVCache } from "../lib/v";
 import { checkAppVersion, setUpdateDismissed } from "../lib/app-version";
@@ -23,6 +24,12 @@ const logoSource = require("../assets/logo.png");
 
 const MIN_DISPLAY_MS = 1500;
 const GATE_CHECK_TIMEOUT_MS = 12000;
+const DEFAULT_ANDROID_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.android ??
+  "https://play.google.com/store/apps/details?id=com.fgeha.app";
+const DEFAULT_IOS_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.ios ??
+  "https://apps.apple.com/app/idYOUR_APP_ID";
 
 type GateStatus =
   | "checking"
@@ -128,7 +135,9 @@ export default function Index() {
   }, [runGateCheck]);
 
   const openStore = useCallback(() => {
-    const url = updatePayload?.storeUrl ?? "https://play.google.com/store/apps/details?id=com.fgeha.app";
+    const url =
+      updatePayload?.storeUrl ??
+      (Platform.OS === "ios" ? DEFAULT_IOS_STORE_URL : DEFAULT_ANDROID_STORE_URL);
     Linking.openURL(url).catch(() => {});
   }, [updatePayload?.storeUrl]);
 

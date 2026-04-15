@@ -43,14 +43,20 @@ function isVersionLess(a: string, b: string): boolean {
   return false;
 }
 
-const DEFAULT_ANDROID =
+const DEFAULT_ANDROID_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.android ??
   "https://play.google.com/store/apps/details?id=com.fgeha.app";
+const DEFAULT_IOS_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.ios ??
+  "https://apps.apple.com/app/idYOUR_APP_ID";
 
 export function ForceUpdateGate({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<
     "loading" | "update-required" | "update-available" | "ok" | "error"
   >("loading");
-  const [storeUrl, setStoreUrl] = useState<string>(DEFAULT_ANDROID);
+  const [storeUrl, setStoreUrl] = useState<string>(
+    Platform.OS === "ios" ? DEFAULT_IOS_STORE_URL : DEFAULT_ANDROID_STORE_URL
+  );
   const [latestVersion, setLatestVersion] = useState<string>("");
   const [logoError, setLogoError] = useState(false);
 
@@ -76,8 +82,8 @@ export function ForceUpdateGate({ children }: { children: React.ReactNode }) {
         const latest = data.latestVersion ?? minimum;
         const url =
           Platform.OS === "ios"
-            ? data.storeUrlIos ?? DEFAULT_ANDROID
-            : data.storeUrlAndroid ?? DEFAULT_ANDROID;
+            ? data.storeUrlIos ?? DEFAULT_IOS_STORE_URL
+            : data.storeUrlAndroid ?? DEFAULT_ANDROID_STORE_URL;
         setStoreUrl(url);
         setLatestVersion(latest);
 

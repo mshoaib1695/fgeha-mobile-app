@@ -4,8 +4,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "./api";
 
 const DISMISS_KEY_PREFIX = "forceUpdateDismissed_";
-const DEFAULT_ANDROID =
+const DEFAULT_ANDROID_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.android ??
   "https://play.google.com/store/apps/details?id=com.fgeha.app";
+const DEFAULT_IOS_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.ios ??
+  "https://apps.apple.com/app/idYOUR_APP_ID";
 const _timeout = 10000;
 
 export type AppVersionStatus =
@@ -61,8 +65,8 @@ export async function checkAppVersion(): Promise<AppVersionResult> {
     const latest = data.latestVersion ?? minimum;
     const storeUrl =
       Platform.OS === "ios"
-        ? data.storeUrlIos ?? DEFAULT_ANDROID
-        : data.storeUrlAndroid ?? DEFAULT_ANDROID;
+        ? data.storeUrlIos ?? DEFAULT_IOS_STORE_URL
+        : data.storeUrlAndroid ?? DEFAULT_ANDROID_STORE_URL;
 
     if (isVersionLess(currentVersion, minimum)) {
       return {

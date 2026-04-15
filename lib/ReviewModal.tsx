@@ -13,12 +13,17 @@ import {
   ScrollView,
 } from "react-native";
 import * as StoreReview from "expo-store-review";
+import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, typography } from "./theme";
 
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.fgeha.app";
+const PLAY_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.android ??
+  "https://play.google.com/store/apps/details?id=com.fgeha.app";
 const PLAY_STORE_MARKET = "market://details?id=com.fgeha.app"; // Opens Play Store app directly on Android
-const APP_STORE_URL = "https://apps.apple.com/app/idYOUR_APP_ID"; // Replace with actual iOS ID when available
+const APP_STORE_URL =
+  Constants.expoConfig?.extra?.storeUrls?.ios ??
+  "https://apps.apple.com/app/idYOUR_APP_ID";
 
 type ReviewModalStep = "rating" | "feedback" | "thanks";
 
