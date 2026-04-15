@@ -2,7 +2,7 @@
   "expo": {
     "name": "FGEHA-RSP",
     "slug": "fgeha-app",
-    "version": "1.0.9",
+    "version": "1.1.0",
     "orientation": "default",
     "icon": "./assets/logo.png",
     "scheme": "fgeha",
@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.fgeha.app"
     },
     "android": {
-      "versionCode": 10,
+      "versionCode": 11,
       "resizableActivity": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
@@ -35,6 +35,8 @@
       "expo-router",
       "expo-asset",
       "expo-notifications",
+      "expo-local-authentication",
+      "expo-secure-store",
       [
         "expo-build-properties",
         {
@@ -45,7 +47,8 @@
           },
           "ios": {
             "infoPlist": {
-              "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
+              "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true },
+              "NSFaceIDUsageDescription": "Use Face ID to securely sign in to your account."
             }
           }
         }

@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert } from "react-native";
 import { setAuthToken, setAuthFailureHandler, API_URL } from "./api";
 import { checkV, clearVCache, getVToken } from "./v";
+import { clearQuickLoginCredentials } from "./quick-auth";
+import { useAppAlert } from "./alert-context";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const sessionExpiredNoticeShownRef = useRef(false);
+  const { showAlert } = useAppAlert();
   const baseUrl = (API_URL ?? "").replace(/\/+$/, "");
 
   const setToken = (t: string | null) => {
@@ -142,14 +144,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthFailureHandler(async () => {
       if (!sessionExpiredNoticeShownRef.current) {
         sessionExpiredNoticeShownRef.current = true;
-        Alert.alert("Session expired", "Please login again.");
+        showAlert({
+          type: "error",
+          title: "Session expired",
+          message: "Please login again.",
+          buttonText: "Login again",
+        });
       }
       await clearSession();
     });
     return () => {
       setAuthFailureHandler(null);
     };
-  }, []);
+  }, [showAlert]);
 
   const login = async (email: string, password: string) => {
     const url = `${baseUrl}/auth/login`;
@@ -197,6 +204,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore push-token cleanup failures during logout
     }
+    await clearQuickLoginCredentials().catch(() => {
+      // ignore quick-login cleanup failures during logout
+    });
     await clearSession();
   };
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,12 @@ import { useAuth } from "../lib/auth-context";
 import { useAppAlert } from "../lib/alert-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, gradientColors, typography } from "../lib/theme";
+import {
+  hasQuickLoginCredentials,
+  isBiometricAvailable,
+  loadQuickLoginCredentials,
+  saveQuickLoginCredentials,
+} from "../lib/quick-auth";
 
 const logoSource = require("../assets/logo.png");
 
@@ -36,10 +42,30 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [biometricReady, setBiometricReady] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
   const { showError } = useAppAlert();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [available, hasSaved] = await Promise.all([
+          isBiometricAvailable(),
+          hasQuickLoginCredentials(),
+        ]);
+        if (!cancelled) setBiometricReady(available && hasSaved);
+      } catch {
+        if (!cancelled) setBiometricReady(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -48,7 +74,12 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      const cleanEmail = email.trim();
+      await login(cleanEmail, password);
+      if (await isBiometricAvailable()) {
+        await saveQuickLoginCredentials(cleanEmail, password);
+        setBiometricReady(true);
+      }
       router.replace("/(tabs)");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
@@ -66,6 +97,25 @@ export default function Login() {
       showError(msg || "Please check your details and try again.", "Sign in failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setBiometricLoading(true);
+    try {
+      const creds = await loadQuickLoginCredentials();
+      if (!creds) {
+        setBiometricReady(false);
+        showError("Biometric sign-in is not set up yet. Please sign in with email and password.");
+        return;
+      }
+      await login(creds.email, creds.password);
+      router.replace("/(tabs)");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      showError(msg || "Biometric sign-in failed. Please sign in with email and password.");
+    } finally {
+      setBiometricLoading(false);
     }
   };
 
@@ -145,6 +195,19 @@ export default function Login() {
               <Text style={styles.buttonText}>{loading ? "Signing in…" : "Sign in"}</Text>
             </LinearGradient>
           </TouchableOpacity>
+          {biometricReady ? (
+            <TouchableOpacity
+              style={[styles.secondaryButton, biometricLoading && styles.buttonDisabled]}
+              onPress={handleBiometricLogin}
+              disabled={biometricLoading || loading}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="finger-print-outline" size={18} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>
+                {biometricLoading ? "Checking..." : "Use Face / Fingerprint"}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <Link href="/forgot-password" asChild>
             <TouchableOpacity style={styles.link} activeOpacity={0.7}>
               <Text style={styles.linkText}>Forgot password?</Text>
@@ -286,6 +349,25 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.textOnGradient,
     fontSize: typography.bodySize,
+    fontWeight: "700",
+  },
+  secondaryButton: {
+    marginTop: 8,
+    marginBottom: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#fafafa",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  secondaryButtonText: {
+    color: colors.primary,
+    fontSize: typography.smallSize,
     fontWeight: "700",
   },
   link: { marginTop: 16, alignItems: "center" },

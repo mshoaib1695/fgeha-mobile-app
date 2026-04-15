@@ -22,13 +22,13 @@ function Root() {
     <SafeAreaProvider>
       <FontProvider>
         <RootErrorBoundary>
-          <AuthProvider>
-            <AlertProvider>
+          <AlertProvider>
+            <AuthProvider>
               <ReviewModalProvider>
                 <App />
               </ReviewModalProvider>
-            </AlertProvider>
-          </AuthProvider>
+            </AuthProvider>
+          </AlertProvider>
         </RootErrorBoundary>
       </FontProvider>
     </SafeAreaProvider>
