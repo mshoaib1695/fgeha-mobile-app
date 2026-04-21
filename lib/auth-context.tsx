@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAuthToken, setAuthFailureHandler, API_URL } from "./api";
 import { checkV, clearVCache, getVToken } from "./v";
-import { clearQuickLoginCredentials } from "./quick-auth";
 import { useAppAlert } from "./alert-context";
 
 const TOKEN_KEY = "token";
@@ -204,9 +203,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore push-token cleanup failures during logout
     }
-    await clearQuickLoginCredentials().catch(() => {
-      // ignore quick-login cleanup failures during logout
-    });
     await clearSession();
   };
 
