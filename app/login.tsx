@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -45,6 +45,7 @@ export default function Login() {
   const [biometricReady, setBiometricReady] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const autoBiometricAttemptedRef = useRef(false);
   const { login } = useAuth();
   const router = useRouter();
   const { showError } = useAppAlert();
@@ -57,15 +58,30 @@ export default function Login() {
           isBiometricAvailable(),
           hasQuickLoginCredentials(),
         ]);
-        if (!cancelled) setBiometricReady(available && hasSaved);
+        if (!cancelled) {
+          setBiometricReady(available && hasSaved);
+        }
       } catch {
-        if (!cancelled) setBiometricReady(false);
+        if (!cancelled) {
+          setBiometricReady(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const isBiometricCancel = (msg: string) => {
+    const normalized = msg.toLowerCase();
+    return (
+      normalized.includes("cancel") ||
+      normalized.includes("canceled") ||
+      normalized.includes("cancelled") ||
+      normalized.includes("user canceled") ||
+      normalized.includes("dismiss")
+    );
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -100,7 +116,7 @@ export default function Login() {
     }
   };
 
-  const handleBiometricLogin = async () => {
+  const handleBiometricLogin = async (auto = false) => {
     setBiometricLoading(true);
     try {
       const creds = await loadQuickLoginCredentials();
@@ -113,11 +129,18 @@ export default function Login() {
       router.replace("/(tabs)");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
+      if (auto && isBiometricCancel(msg)) return;
       showError(msg || "Biometric sign-in failed. Please sign in with email and password.");
     } finally {
       setBiometricLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!biometricReady || loading || biometricLoading || autoBiometricAttemptedRef.current) return;
+    autoBiometricAttemptedRef.current = true;
+    void handleBiometricLogin(true);
+  }, [biometricReady, loading, biometricLoading]);
 
   return (
     <KeyboardAvoidingView
@@ -198,7 +221,7 @@ export default function Login() {
           {biometricReady ? (
             <TouchableOpacity
               style={[styles.secondaryButton, biometricLoading && styles.buttonDisabled]}
-              onPress={handleBiometricLogin}
+              onPress={() => void handleBiometricLogin(false)}
               disabled={biometricLoading || loading}
               activeOpacity={0.85}
             >
